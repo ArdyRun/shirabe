@@ -1,0 +1,33 @@
+{
+  "name": "shirabe",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Shirabe — ekstensi kamus bahasa Jepang kontekstual dengan pencarian lokal (Manifest V3).",
+  "scripts": {
+    "build": "npm run build:pages && npm run build:content && node scripts/validate-build.mjs",
+    "build:pages": "vite build",
+    "build:content": "vite build --config vite.content.config.ts",
+    "dev:content": "vite build --config vite.content.config.ts --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "bench": "node scripts/benchmark.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "dataset:verify": "node scripts/verify-dataset.mjs",
+    "verify:stale": "node scripts/verify-stale-context.mjs",
+    "dev": "node scripts/dev.mjs",
+    "dev:pages": "vite build --watch"
+  },
+  "devDependencies": {
+    "@types/chrome": "0.3.5",
+    "@types/node": "26.6.5",
+    "fake-indexeddb": "6.2.5",
+    "happy-dom": "21.0.3",
+    "playwright": "1.64.1",
+    "typescript": "6.0.3",
+    "vite": "8.3.4",
+    "vitest": "5.0.5"
+  }
+}

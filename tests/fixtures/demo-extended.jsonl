@@ -1,0 +1,13 @@
+{"type":"shirabe-dictionary","schemaVersion":1,"id":"shirabe-demo-extended","name":"Kamus Contoh Shirabe — dataset kedua (data uji)","language":"ja","definitionLanguage":"id","license":"CC0-1.0 — teks definisi ditulis khusus untuk pengujian Shirabe","attribution":"Tim Shirabe — data contoh kecil untuk pengujian, bukan kamus lengkap"}
+{"expression":"食べる","reading":"たべる","definitions":["makan (definisi dari kamus kedua)"],"partOfSpeech":["v1"],"tags":["duplikat-lintas-kamus"],"rules":["v1"]}
+{"expression":"食べました","reading":"たべました","definitions":["bentuk lampau sopan dari 食べる"],"partOfSpeech":["v1"],"tags":["bentuk-lampau"],"rules":["v1"]}
+{"expression":"書いて","reading":"かいて","definitions":["bentuk te dari 書く"],"partOfSpeech":["v5k"],"tags":["bentuk-te"],"rules":["v5k"]}
+{"expression":"高くない","reading":"たかくない","definitions":["tidak tinggi (entri khusus kana)"],"partOfSpeech":["adj-i"],"tags":["bentuk-negatif"],"rules":["adj-i"]}
+{"expression":"がくせい","reading":"","definitions":["pelajar (ditulis kana)"],"partOfSpeech":["n"],"tags":["kana"],"rules":[]}
+{"expression":"みる","reading":"","definitions":["melihat (ditulis kana)"],"partOfSpeech":["v1"],"tags":["kana"],"rules":["v1"]}
+{"expression":"ありません","reading":"","definitions":["bentuk sopan negatif dari ある"],"partOfSpeech":["v5r"],"tags":["bentuk-sopan"],"rules":["v5r"]}
+{"expression":"タグなし","reading":"たぐなし","definitions":["entri tanpa tag POS"],"partOfSpeech":[],"tags":[],"rules":[]}
+{"expression":"よくわからないタグ","reading":"","definitions":["entri dengan tag asing"],"partOfSpeech":["pos-tidak-dikenal"],"tags":["tag-asing-luar-biasa"],"rules":[]}
+{"expression":"スーパーマーケット","reading":"スーパーマーケット","definitions":["supermarket"],"partOfSpeech":["n"],"tags":[],"rules":[]}
+{"expression":"喫茶店","reading":"きっさてん","definitions":["kedai kopi"],"partOfSpeech":["n"],"tags":[],"rules":[]}
+{"expression":"ニュース","reading":"ニュース","definitions":["berita"],"partOfSpeech":["n"],"tags":[],"rules":[]}

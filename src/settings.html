@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="id" data-theme-pending>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shirabe — Pengaturan</title>
+  </head>
+  <body>
+    <main class="settings">
+      <header class="settings__header">
+        <div>
+          <h1 data-i18n="settings.title">Pengaturan Shirabe</h1>
+          <p class="note" data-i18n="app.tagline">Kamus Jepang kontekstual dengan lookup lokal</p>
+        </div>
+        <span id="version" class="note"></span>
+      </header>
+
+      <nav class="tabs" role="tablist" aria-label="Bagian pengaturan">
+        <button id="tab-dictionaries" class="tab" type="button" role="tab" aria-selected="true" aria-controls="panel-dictionaries" data-i18n="settings.tabDictionaries">Kamus</button>
+        <button id="tab-reading" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-reading" data-i18n="settings.tabReading">Membaca</button>
+        <button id="tab-privacy" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-privacy" data-i18n="settings.tabPrivacy">Privasi</button>
+        <button id="tab-about" class="tab" type="button" role="tab" aria-selected="false" aria-controls="panel-about" data-i18n="settings.tabAbout">Umum</button>
+      </nav>
+
+      <section id="panel-dictionaries" class="panel stack" role="tabpanel" aria-labelledby="tab-dictionaries">
+        <div class="card stack">
+          <h2 data-i18n="settings.import">Impor dataset JSONL</h2>
+          <p class="note" id="import-hint"></p>
+          <p class="note" data-i18n="settings.importYomitanHint">
+            Kamus ZIP Yomitan (format 3, term bank) diterima langsung dan dikonversi saat impor; bank kanji/meta/media diabaikan dan dilaporkan.
+          </p>
+          <div class="row">
+            <label class="button button--primary" for="import-input" data-i18n="settings.import">
+              Impor dataset JSONL
+            </label>
+            <input
+              id="import-input"
+              type="file"
+              accept=".jsonl,.ndjson,.json,.zip,text/plain"
+              multiple
+              hidden
+            />
+            <span class="note" id="import-selection"></span>
+          </div>
+          <div id="import-progress" class="stack" hidden>
+            <progress id="import-progress-bar" max="100" value="0"></progress>
+            <ul id="import-files" class="import-files" aria-live="polite"></ul>
+            <div class="row row--between">
+              <span class="note" id="import-progress-text"></span>
+              <button id="import-cancel" class="button button--danger" type="button" data-i18n="settings.importCancel">
+                Batalkan impor
+              </button>
+            </div>
+          </div>
+          <div id="import-messages" class="stack" aria-live="polite"></div>
+        </div>
+
+        <div class="card stack">
+          <div class="dictionary-head">
+            <h2 data-i18n="settings.dictionaries">Kamus terpasang</h2>
+            <label class="dictionary-select-toggle" for="dictionary-select-mode">
+              <input id="dictionary-select-mode" type="checkbox" />
+              <span data-i18n="settings.selectMode">Pilih kamus</span>
+            </label>
+          </div>
+          <div id="dictionary-bulk" class="dictionary-bulk" hidden>
+            <span id="dictionary-selected-count" class="note" role="status" aria-live="polite"></span>
+            <div class="dictionary-bulk__actions">
+              <button
+                id="dictionary-select-all"
+                class="button button--icon"
+                type="button"
+                aria-pressed="false"
+                data-i18n="settings.selectAll"
+              >
+                Pilih semua
+              </button>
+              <button id="dictionary-bulk-enable" class="button button--icon" type="button" data-i18n="settings.enable">
+                Aktifkan
+              </button>
+              <button id="dictionary-bulk-disable" class="button button--icon" type="button" data-i18n="settings.disable">
+                Nonaktifkan
+              </button>
+              <button
+                id="dictionary-bulk-delete"
+                class="button button--icon button--danger"
+                type="button"
+                data-i18n="settings.delete"
+              >
+                Hapus
+              </button>
+            </div>
+          </div>
+          <ul id="dictionary-list" class="dictionary-list" data-select-mode="false"></ul>
+          <p id="dictionary-empty" class="note" data-i18n="settings.empty" hidden></p>
+        </div>
+
+        <div class="card stack">
+          <h2 data-i18n="settings.storage">Storage</h2>
+          <p class="note" id="storage-summary"></p>
+          <p class="note" data-i18n="settings.storageClearHint"></p>
+          <p class="note" id="limits-summary"></p>
+        </div>
+      </section>
+
+      <section id="panel-reading" class="panel stack" role="tabpanel" aria-labelledby="tab-reading" hidden>
+        <div class="card stack">
+          <h2 data-i18n="settings.tabReading">Membaca</h2>
+          <label class="row" for="setting-modifier">
+            <span data-i18n="settings.scanModifier">Tombol modifier scan</span>
+            <select id="setting-modifier"></select>
+          </label>
+          <p class="note" data-i18n="settings.scanModifierHint"></p>
+          <label class="row" for="setting-popup-width">
+            <span data-i18n="settings.popupWidth">Lebar popup (px)</span>
+            <input id="setting-popup-width" type="number" min="280" max="720" step="10" />
+          </label>
+          <label class="row" for="setting-popup-height">
+            <span data-i18n="settings.popupMaxHeight">Tinggi maksimum popup (px)</span>
+            <input id="setting-popup-height" type="number" min="200" max="900" step="20" />
+          </label>
+          <label class="row" for="setting-hide-delay">
+            <span data-i18n="settings.popupHideDelay">Jeda penutupan popup (ms)</span>
+            <input id="setting-hide-delay" type="number" min="0" max="2000" step="50" />
+          </label>
+          <label class="row" for="setting-max-results">
+            <span data-i18n="settings.maxResults">Hasil maksimum per kueri</span>
+            <input id="setting-max-results" type="number" min="5" max="30" step="5" />
+          </label>
+          <label class="row" for="setting-reading-search">
+            <input id="setting-reading-search" type="checkbox" />
+            <span data-i18n="settings.readingSearch">Cocokkan kueri kana ke bacaan</span>
+          </label>
+          <p class="note" data-i18n="settings.readingSearchHint"></p>
+        </div>
+
+        <div class="card stack">
+          <h2 data-i18n="settings.scanAllSites">Pindai semua situs</h2>
+          <label class="row" for="setting-scan-all">
+            <input id="setting-scan-all" type="checkbox" />
+            <span data-i18n="settings.scanAllSitesLabel">Aktifkan pemindaian di semua situs http/https</span>
+          </label>
+          <p class="note" data-i18n="settings.scanAllSitesHint"></p>
+        </div>
+
+        <div class="card stack">
+          <h2 data-i18n="settings.sites">Situs yang dikecualikan</h2>
+          <p class="note" data-i18n="settings.sitesHint"></p>
+          <p id="sites-empty" class="note" data-i18n="settings.siteEmpty" hidden></p>
+          <ul id="site-list" class="site-list"></ul>
+        </div>
+      </section>
+
+      <section id="panel-privacy" class="panel stack" role="tabpanel" aria-labelledby="tab-privacy" hidden>
+        <div class="card stack">
+          <h2 data-i18n="settings.privacyTitle">Data lokal</h2>
+          <p data-i18n="settings.privacyBody"></p>
+          <p class="note" data-i18n="settings.privacyNoHistory"></p>
+          <p class="note" data-i18n="settings.privacyPermissions"></p>
+        </div>
+      </section>
+
+      <section id="panel-about" class="panel stack" role="tabpanel" aria-labelledby="tab-about" hidden>
+        <div class="card stack">
+          <h2 data-i18n="settings.tabAbout">Umum</h2>
+          <label class="row" for="setting-language">
+            <span data-i18n="settings.language">Bahasa antarmuka</span>
+            <select id="setting-language"></select>
+          </label>
+          <label class="row" for="setting-theme">
+            <span data-i18n="settings.theme">Tema</span>
+            <select id="setting-theme"></select>
+          </label>
+          <p class="note" id="about-version"></p>
+          <p class="note" id="about-schema"></p>
+          <p class="note" id="about-components"></p>
+          <p class="note" data-i18n="settings.aboutReference"></p>
+        </div>
+      </section>
+
+      <p id="global-status" class="note" role="status"></p>
+    </main>
+
+    <dialog id="confirm-dialog" class="dialog">
+      <form method="dialog" class="stack">
+        <h2 id="confirm-title"></h2>
+        <p id="confirm-body"></p>
+        <div class="row row--end">
+          <button id="confirm-cancel" class="button" type="submit" value="cancel" data-i18n="settings.cancel">
+            Batal
+          </button>
+          <button id="confirm-accept" class="button button--danger" type="submit" value="accept"></button>
+        </div>
+      </form>
+    </dialog>
+
+    <script type="module" src="./settings/index.ts"></script>
+  </body>
+</html>

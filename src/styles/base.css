@@ -1,0 +1,297 @@
+/**
+ * Gaya bersama halaman extension Shirabe (action popup, pencarian, pengaturan).
+ *
+ * Struktur: token desain (`tokens.css`) → komponen kartu entri (`results.css`) →
+ * elemen dasar serta komponen halaman (berkas ini).
+ */
+
+@import './tokens.css';
+@import './results.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
+    'Noto Sans JP', sans-serif;
+  font-size: var(--fs-body);
+  line-height: 1.55;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0 0 var(--s3);
+  line-height: 1.3;
+  letter-spacing: -0.015em;
+}
+
+h1 {
+  font-size: 1.42rem;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: 1.08rem;
+  font-weight: 650;
+}
+
+h3,
+h4 {
+  font-size: 0.95rem;
+  font-weight: 650;
+}
+
+p {
+  margin: var(--s2) 0;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Fokus keyboard selalu terlihat, termasuk pada kartu entri dan tab. */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- tombol */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s2);
+  min-height: 32px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 var(--s5);
+  background: var(--raised);
+  color: var(--fg);
+  font-size: 12.5px;
+  font-weight: 550;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease,
+    transform 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--border-strong);
+  background: var(--card-hover);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.button--primary {
+  border-color: transparent;
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 650;
+}
+
+.button--primary:hover:not(:disabled) {
+  border-color: transparent;
+  background: var(--accent-strong);
+}
+
+.button--danger {
+  border-color: color-mix(in srgb, var(--danger) 45%, var(--border));
+  background: color-mix(in srgb, var(--danger) 12%, transparent);
+  color: var(--danger);
+}
+
+.button--danger:hover:not(:disabled) {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 18%, transparent);
+}
+
+/* Tombol ikon: target klik tetap 30 px, isi hanya ikon/tanda. */
+.button--icon {
+  min-width: 30px;
+  min-height: 30px;
+  padding: 0 var(--s3);
+}
+
+/* ---------------------------------------------------------------- form */
+
+input[type='text'],
+input[type='search'],
+input[type='number'],
+input[type='url'],
+select,
+textarea {
+  min-height: 34px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 0 var(--s4);
+  background: var(--bg-elevated);
+  box-shadow: inset 0 1px 2px rgb(0 0 0 / 6%);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
+}
+
+/* ---------------------------------------------------------------- tata letak */
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s5);
+  background: var(--card);
+  box-shadow: var(--shadow-sm);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--s4);
+  flex-wrap: wrap;
+}
+
+.row--between {
+  justify-content: space-between;
+}
+
+.row--end {
+  justify-content: flex-end;
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.note {
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.45;
+}
+
+/* Catatan yang butuh tindakan pengguna (mis. komponen extension belum seragam). */
+.note--warning {
+  color: var(--warning);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- status */
+
+.status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 0 var(--s4);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: var(--fs-tiny);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.status--ok {
+  border-color: color-mix(in srgb, var(--success) 40%, var(--border));
+  background: color-mix(in srgb, var(--success) 14%, transparent);
+  color: var(--success);
+}
+
+.status--warn {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border));
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+progress {
+  width: 100%;
+  height: 6px;
+  border-radius: var(--r-pill);
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------- scrollbar */
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--faint);
+  background-clip: content-box;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .card,
+  .button,
+  .entry {
+    border: 1px solid CanvasText;
+  }
+}

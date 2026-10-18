@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="id" data-theme-pending>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shirabe — Pencarian</title>
+  </head>
+  <body>
+    <main class="search">
+      <header class="search__header">
+        <div>
+          <h1 data-i18n="search.title">Pencarian Shirabe</h1>
+          <p class="note" data-i18n="app.tagline">
+            Kamus Jepang kontekstual dengan lookup lokal
+          </p>
+        </div>
+        <button id="settings-button" class="button" type="button" data-i18n="search.openSettings">
+          Pengaturan
+        </button>
+      </header>
+
+      <form id="search-form" role="search" class="row">
+        <label class="note" for="search-input" data-i18n="search.placeholder">Cari kata Jepang…</label>
+        <div class="row" style="flex: 1; min-width: 0">
+          <input
+            id="search-input"
+            type="search"
+            autocomplete="off"
+            spellcheck="false"
+            data-i18n-placeholder="search.placeholder"
+            placeholder="Cari kata Jepang…"
+            style="flex: 1; min-width: 0"
+          />
+          <button id="search-button" class="button button--primary" type="submit" data-i18n="action.search">
+            Cari
+          </button>
+        </div>
+      </form>
+
+      <section id="status" class="row"></section>
+      <section id="results" class="stack" aria-live="polite"></section>
+      <p id="hint" class="note"></p>
+    </main>
+    <script type="module" src="./search/index.ts"></script>
+  </body>
+</html>

@@ -1,0 +1,564 @@
+/**
+ * Komponen hasil lookup: tab sumber kamus, panel kamus, kartu entri, badge metadata, dan
+ * structured content (schema v2). Dipakai bersama oleh popup dalam halaman dan halaman
+ * extension (action popup, pencarian).
+ *
+ * Penyajian mengikuti pola Yomitan/Hachidori: satu panel per sumber kamus, kartu entri
+ * dengan furigana, seluruh definisi tampil langsung, metadata sebagai badge kecil.
+ * Seluruh warna memakai token dari `tokens.css`.
+ */
+
+/* --------------------------------------------------------- tab kamus (jl-tabs) */
+
+/* Grup tombol sumber kamus bergaya `jl-tabs` Hachidori: strip bisa digulir mendatar,
+   tombol aktif ditandai aksen. */
+.dict-tabs {
+  display: flex;
+  gap: var(--s2);
+  padding: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.dict-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.dict-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+  min-height: 26px;
+  max-width: min(150px, 58vw);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 2px var(--s5);
+  background: var(--bg-elevated);
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-tiny);
+  font-weight: 600;
+  line-height: 1.3;
+  cursor: pointer;
+  transition: background-color 120ms ease, color 120ms ease, border-color 120ms ease;
+}
+
+.dict-tab:hover {
+  background: var(--card-hover);
+  color: var(--fg);
+}
+
+.dict-tab[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.dict-tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dict-tab__count {
+  color: var(--faint);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dict-tab[aria-pressed='true'] .dict-tab__count {
+  color: inherit;
+  opacity: 0.75;
+}
+
+/* --------------------------------------------------------- daftar entri (jl-scroll) */
+
+/* Daftar datar seperti `jl-scroll > article.jl-entry`: tidak ada panel per kamus. */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+/* --------------------------------------------------------- kartu entri (jl-entry) */
+
+.entry {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s4) var(--s5);
+  background: var(--card);
+  outline: none;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+
+.entry:hover {
+  background: var(--card-hover);
+}
+
+.entry[data-selected='true'] {
+  border-color: var(--accent);
+  background: var(--card-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Baris atas (jl-top): headword, bacaan, dan nama kamus dalam satu baris. */
+.entry__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.entry__spelling {
+  font-family: var(--font-reading);
+  font-size: var(--fs-headword);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: 0.01em;
+  overflow-wrap: anywhere;
+}
+
+/* Kanji dapat diklik (jl-kanji-link): tampil seperti teks, ditandai saat hover/fokus. */
+.entry__kanji {
+  all: unset;
+  cursor: pointer;
+  border-radius: var(--r-xs);
+}
+
+.entry__kanji:hover,
+.entry__kanji:focus-visible {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  outline: none;
+}
+
+.entry__reading {
+  font-family: var(--font-reading);
+  color: var(--muted);
+  font-size: var(--fs-body);
+}
+
+.entry__reading--missing {
+  font-size: var(--fs-label);
+  font-style: italic;
+}
+
+.entry__dictionary {
+  margin-inline-start: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 0 var(--s4);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------- rantai infleksi */
+
+/* Disclosure rantai deinfleksi: mengikuti pola Hachidori (tertutup bawaan, teks kecil
+   dan redup, deskripsi mempertahankan baris barunya). */
+.inflection {
+  margin-top: var(--s1);
+  color: var(--muted);
+  font-size: var(--fs-tiny);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.inflection__summary {
+  padding: 1px var(--s1);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.inflection__endpoint,
+.inflection__description {
+  white-space: pre-wrap;
+}
+
+.inflection__arrow {
+  padding: 0 var(--s2);
+}
+
+.inflection__steps {
+  margin: var(--s1) 0 0;
+  padding-inline-start: 1.5em;
+}
+
+.inflection__step {
+  margin-block: 1px;
+}
+
+.inflection__transform {
+  font-weight: 600;
+}
+
+.inflection__description {
+  margin-inline-start: var(--s2);
+}
+
+/* --------------------------------------------------------- definisi (jl-glossary-content) */
+
+.entry__definitions {
+  margin-top: var(--s3);
+}
+
+.entry__glossary {
+  font-size: var(--fs-gloss);
+  line-height: var(--lh-gloss);
+}
+
+/* Metadata sense ditulis inline dalam tanda kurung siku, mis. `[v5n, vi]`. */
+.definitions__meta {
+  margin-inline-end: var(--s2);
+  color: var(--faint);
+  font-size: var(--fs-label);
+  font-weight: 600;
+}
+
+.definitions {
+  margin: 0;
+  padding-inline-start: 1.4em;
+}
+
+.definitions--single {
+  padding-inline-start: 0;
+}
+
+.definitions__item {
+  margin-block: var(--s1) var(--s3);
+}
+
+.definitions__item::marker {
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.glosses {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Baris glosarium bergaya referensi: bullet `•` di depan setiap sinonim, termasuk
+   ketika entri hanya punya satu sense (acuan menulis semua glosarium dengan bullet). */
+.glosses {
+  font-family: var(--font-reading);
+}
+
+.glosses__item {
+  position: relative;
+  padding-inline-start: 1.1em;
+}
+
+.glosses__item::before {
+  content: '•';
+  position: absolute;
+  inset-inline-start: 0;
+  color: var(--faint);
+}
+
+/* ------------------------------------------------- structured content (schema v2) */
+
+/* Tabel (mis. glosarium `forms` JMdict) tampil sebagai tabel asli, bukan sederet teks.
+   Wadah dengan gulir horizontal menjaga tabel lebar tetap di dalam popup. */
+.sc-table-wrap {
+  max-width: 100%;
+  margin: var(--s1) 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.sc-table {
+  max-width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95em;
+}
+
+.sc-table th,
+.sc-table td {
+  border: 1px solid var(--border);
+  padding: 1px var(--s3);
+  vertical-align: top;
+}
+
+.sc-table th {
+  background: var(--raised);
+  font-weight: 600;
+}
+
+/* Daftar di dalam definisi (catatan/rujukan) tetap membawa penandanya. */
+.sc-ul,
+.sc-ol {
+  margin: var(--s2) 0;
+  padding-left: 1.4em;
+}
+
+.sc-li {
+  margin: 0;
+}
+
+.sc-p,
+.sc-div {
+  margin: var(--s1) 0;
+}
+
+.sc-p:first-child,
+.sc-div:first-child {
+  margin-top: 0;
+}
+
+.sc-p:last-child,
+.sc-div:last-child {
+  margin-bottom: 0;
+}
+
+.sc-details > .sc-summary {
+  cursor: pointer;
+}
+
+.sc-ruby > .sc-rt {
+  font-size: 0.5em;
+}
+
+/* Catatan dan rujukan dibedakan dari glosarium, seperti Hachidori. */
+[data-content='notes'] {
+  color: var(--muted);
+}
+
+[data-content='references'] {
+  color: var(--faint);
+}
+
+.note {
+  margin: var(--s1) 0 0;
+  color: var(--faint);
+  font-size: var(--fs-tiny);
+  line-height: 1.45;
+}
+
+/* --------------------------------------------------------- gambar definisi (sc-img) */
+
+/* Gambar kamus (`img` pada structured content): byte-nya berasal dari store `media`
+   kamus itu sendiri, jadi tidak ada permintaan jaringan ke luar kamus. */
+.sc-img {
+  max-width: 100%;
+  vertical-align: middle;
+}
+
+/* Gambar monokrom mengikuti warna teks: diinversi pada tema gelap (pola Yomitan). */
+[data-theme='dark'] .sc-img--monochrome {
+  filter: invert(1);
+}
+
+/* --------------------------------------------------------- badge meta istilah */
+
+/* Pitch accent dan frekuensi dari bank meta istilah: chip padat di sebelah bacaan,
+   sebelum badge kamus (pola `jl-meta` Hachidori). Radius memakai token permukaan:
+   popup bersudut siku (menimpanya di `popup.css`), halaman extension membulat. */
+.meta-badge {
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  padding: 0 var(--s2);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.meta-badge--pitch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+}
+
+/* Notasi downstep `[n]` di samping grafnya: angka lebih redup daripada grafiknya. */
+.meta-badge__notation {
+  color: var(--faint);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chip frekuensi memuat nama kamus dan nilainya: `[Jiten|200]`, dipisah garis tipis
+   supaya asal angkanya terbaca tanpa tooltip. */
+.meta-badge--freq {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  overflow: hidden;
+}
+
+.meta-badge__source {
+  padding: 0 var(--s2);
+  color: var(--faint);
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.meta-badge__value {
+  border-inline-start: 1px solid var(--border);
+  padding: 0 var(--s2);
+  color: var(--fg);
+}
+
+/* Frekuensi tampil di barisnya sendiri di bawah headword, bukan sejajar bacaan. */
+.entry__frequencies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s2);
+}
+
+/* --------------------------------------------------------- kontur pitch accent */
+
+/* Bacaan dengan garis nada: mora bernada tinggi bergaris di atas, mora rendah bergaris
+   di bawah, dan mora tempat nada berubah disambung garis tegak sehingga polanya terbaca
+   seperti tangga (gaya teks Yomitan/Hachidori, `createPronunciationText`). */
+.pitch-reading {
+  display: inline-flex;
+  align-items: stretch;
+  vertical-align: baseline;
+}
+
+.entry__reading--pitch {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--s3);
+}
+
+.pitch-reading__mora {
+  position: relative;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  padding: 0.1em 0.03em;
+  line-height: 1.15;
+  white-space: nowrap;
+}
+
+.pitch-reading__mora[data-pitch-level='high'] {
+  border-top-color: currentColor;
+}
+
+.pitch-reading__mora[data-pitch-level='low'] {
+  border-bottom-color: currentColor;
+}
+
+/* Sambungan naik/turun antar mora: garis tegak antara garis atas dan garis bawah. */
+.pitch-reading__mora[data-pitch-transition]::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -1px;
+  border-inline-start: 2px solid currentColor;
+}
+
+/* Ujung kata yang turun setelah mora terakhir (odaka): garis turun tanpa kana. */
+.pitch-reading__tail {
+  position: relative;
+  width: 0.4em;
+  border-top: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+}
+
+.pitch-reading__tail[data-pitch-tail='down'] {
+  border-bottom-color: currentColor;
+}
+
+.pitch-reading__tail[data-pitch-tail='down']::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: -1px;
+  border-inline-start: 2px solid currentColor;
+}
+
+/* Mora tanpa suara (lingkaran putus-putus) dan nasal (titik kecil), pola Yomitan. */
+.pitch-reading__devoice {
+  position: absolute;
+  inset: -0.05em -0.1em;
+  border: 1.5px dotted var(--danger);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.pitch-reading__nasal {
+  position: absolute;
+  top: -0.15em;
+  inset-inline-end: -0.1em;
+  width: 0.3em;
+  height: 0.3em;
+  border: 1.5px solid var(--danger);
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+/* --------------------------------------------------------- blok kanji (bank kanji) */
+
+/* Data kanji di atas daftar entri: satu kartu per kamus, memakai sistem visual kartu
+   entri (border 1px, latar kartu, radius token permukaan). */
+.kanji-block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s4);
+}
+
+.kanji-block__item {
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--s4) var(--s5);
+  background: var(--card);
+}
+
+.kanji-block__top {
+  display: flex;
+  align-items: baseline;
+  gap: var(--s3);
+  flex-wrap: wrap;
+}
+
+.kanji-block__character {
+  font-family: var(--font-reading);
+  font-size: var(--fs-headword);
+  font-weight: 700;
+  line-height: 1.15;
+}
+
+.kanji-block__onyomi,
+.kanji-block__kunyomi {
+  font-family: var(--font-reading);
+  color: var(--muted);
+  font-size: var(--fs-body);
+}
+
+.kanji-block__meanings {
+  margin: var(--s3) 0 0;
+  padding-inline-start: 1.4em;
+  font-size: var(--fs-gloss);
+  line-height: var(--lh-gloss);
+}
+
+.kanji-block__meanings::marker {
+  color: var(--faint);
+  font-weight: 600;
+}
+
+.kanji-block__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s2);
+  margin-top: var(--s3);
+}
+
+/* Chip statistik (goresan, kelas, JLPT, …) dan tag bank kanji. */
+.kanji-block__chip {
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  padding: 0 var(--s2);
+  background: var(--raised);
+  color: var(--muted);
+  font-size: var(--fs-tiny);
+}

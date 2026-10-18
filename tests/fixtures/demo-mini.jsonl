@@ -1,0 +1,35 @@
+{"type":"shirabe-dictionary","schemaVersion":1,"id":"shirabe-demo-mini","name":"Kamus Contoh Shirabe (data uji)","language":"ja","definitionLanguage":"id","license":"CC0-1.0 — teks definisi ditulis khusus untuk pengujian Shirabe","attribution":"Tim Shirabe — data contoh kecil untuk pengujian, bukan kamus lengkap"}
+{"expression": "食べる", "reading": "たべる", "definitions": ["makan", "memakan"], "partOfSpeech": ["v1"], "tags": ["umum"], "rules": ["v1"]}
+{"expression": "書く", "reading": "かく", "definitions": ["menulis"], "partOfSpeech": ["v5k"], "tags": [], "rules": ["v5k"]}
+{"expression": "高い", "reading": "たかい", "definitions": ["tinggi", "mahal"], "partOfSpeech": ["adj-i"], "tags": [], "rules": ["adj-i"]}
+{"expression": "する", "reading": "する", "definitions": ["melakukan"], "partOfSpeech": ["vs"], "tags": [], "rules": ["vs"]}
+{"expression": "来る", "reading": "くる", "definitions": ["datang"], "partOfSpeech": ["vk"], "tags": [], "rules": ["vk"]}
+{"expression": "学生", "reading": "がくせい", "definitions": ["pelajar; mahasiswa"], "partOfSpeech": ["n"], "tags": ["⭐", "ichi", "spec", "umum"], "rules": []}
+{"expression": "行く", "reading": "いく", "definitions": ["pergi"], "partOfSpeech": ["v5k"], "tags": [], "rules": ["v5k"]}
+{"expression": "待つ", "reading": "まつ", "definitions": ["menunggu"], "partOfSpeech": ["v5t"], "tags": [], "rules": ["v5t"]}
+{"expression": "買う", "reading": "かう", "definitions": ["membeli"], "partOfSpeech": ["v5u"], "tags": [], "rules": ["v5u"]}
+{"expression": "読む", "reading": "よむ", "definitions": ["membaca"], "partOfSpeech": ["v5m"], "tags": [], "rules": ["v5m"]}
+{"expression": "話す", "reading": "はなす", "definitions": ["berbicara", "menceritakan"], "partOfSpeech": ["v5s"], "tags": [], "rules": ["v5s"]}
+{"expression": "泳ぐ", "reading": "およぐ", "definitions": ["berenang"], "partOfSpeech": ["v5g"], "tags": [], "rules": ["v5g"]}
+{"expression": "遊ぶ", "reading": "あそぶ", "definitions": ["bermain"], "partOfSpeech": ["v5b"], "tags": [], "rules": ["v5b"]}
+{"expression": "死ぬ", "reading": "しぬ", "definitions": ["meninggal"], "partOfSpeech": ["v5n"], "tags": [], "rules": ["v5n"]}
+{"expression": "見る", "reading": "みる", "definitions": ["melihat", "menonton"], "partOfSpeech": ["v1"], "tags": [], "rules": ["v1"]}
+{"expression": "静か", "reading": "しずか", "definitions": ["tenang"], "partOfSpeech": ["adj-na"], "tags": [], "rules": ["adj-na"]}
+{"expression": "勉強する", "reading": "べんきょうする", "definitions": ["belajar"], "partOfSpeech": ["vs"], "tags": [], "rules": ["vs"]}
+{"expression": "勉強", "reading": "べんきょう", "definitions": ["belajar (kata benda)"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "日本語", "reading": "にほんご", "definitions": ["bahasa Jepang"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "橋", "reading": "はし", "definitions": ["jembatan"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "箸", "reading": "はし", "definitions": ["sumpit"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "猫", "reading": "", "definitions": ["kucing"], "partOfSpeech": ["n"], "tags": ["tanpa-bacaan"], "rules": []}
+{"expression": "食べ物", "reading": "たべもの", "definitions": ["makanan"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "カタカナ", "reading": "かたかな", "definitions": ["katakana"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "東京", "reading": "とうきょう", "definitions": ["Tokyo"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "東京都", "reading": "とうきょうと", "definitions": ["Prefektur Tokyo"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "ある", "reading": "ある", "definitions": ["ada (benda mati)"], "partOfSpeech": ["v5r"], "tags": [], "rules": ["v5r"]}
+{"expression": "とても", "reading": "", "definitions": ["sangat"], "partOfSpeech": ["adv"], "tags": [], "rules": []}
+{"expression": "アパート", "reading": "アパート", "definitions": ["apartemen"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "だった", "reading": "だった", "definitions": ["adalah (bentuk lampau) — data uji kandidat tanpa spasi"], "partOfSpeech": ["exp"], "tags": [], "rules": []}
+{"expression": "陸上部", "reading": "りくじょうぶ", "definitions": ["klub atletik — data uji kandidat tanpa spasi"], "partOfSpeech": ["n"], "tags": [], "rules": []}
+{"expression": "がな", "reading": "がな", "definitions": ["partikel akhir kalimat — data uji kata pendek di rentetan kana"], "partOfSpeech": ["prt"], "tags": [], "rules": []}
+{"expression": "なんで", "reading": "なんで", "definitions": ["kenapa — data uji kata pendek di rentetan kana"], "partOfSpeech": ["adv"], "tags": [], "rules": []}
+{"expression": "聞こえる", "reading": "きこえる", "definitions": ["to be heard", "to be audible"], "partOfSpeech": ["v1"], "tags": [], "rules": []}

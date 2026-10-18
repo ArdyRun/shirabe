@@ -1,0 +1,409 @@
+/** Gaya halaman pengaturan Shirabe. */
+
+body {
+  min-height: 100vh;
+}
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.25rem 1rem 3rem;
+}
+
+.settings__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0.35rem;
+  flex-wrap: wrap;
+}
+
+.tab {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.3rem 0.75rem;
+  background: var(--surface);
+  color: var(--fg);
+}
+
+.tab[aria-selected='true'] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.panel {
+  gap: 0.75rem;
+}
+
+.row--end {
+  justify-content: flex-end;
+}
+
+.row label,
+label.row {
+  gap: 0.5rem;
+}
+
+label.row input[type='number'] {
+  width: 7rem;
+}
+
+.dictionary-list,
+.site-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dictionary,
+.site {
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  padding: 0.55rem 0.65rem;
+  background: var(--bg);
+}
+
+.dictionary__title {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* Baris kamus ringkas: satu baris (pilih, seret, judul, status, ringkasan, aksi).
+   Aksi harian (aktif/nonaktif, urutan, hapus) ada di baris ini; panel `dictionary__detail`
+   hanya memuat metadata (lisensi, atribusi, tanggal impor). */
+.dictionary-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.dictionary-head h2 {
+  margin: 0;
+}
+
+.dictionary-select-toggle {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.86rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.dictionary-select-toggle input {
+  accent-color: var(--accent);
+}
+
+/* Bilah aksi massal: hanya hadir saat mode pilih aktif, jadi tidak menambah beban visual
+   pada pemakaian biasa. */
+.dictionary-bulk {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: var(--surface);
+}
+
+.dictionary-bulk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+
+/* "Pilih semua" adalah tombol sakelar: keadaannya harus terbaca, bukan hanya tersimpan
+   di aria-pressed. */
+.dictionary-bulk [aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--fg);
+}
+
+.dictionary__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dictionary__head h3 {
+  min-width: 0;
+}
+
+.dictionary__select {
+  flex: none;
+  accent-color: var(--accent);
+}
+
+/* Di luar mode pilih, checkbox disembunyikan dari tampilan dan urutan Tab. */
+.dictionary-list[data-select-mode='false'] .dictionary__select {
+  display: none;
+}
+
+/* Mode pilih: baris hanya soal memilih, aksi per baris pindah ke bilah massal. */
+.dictionary-list[data-select-mode='true'] .dictionary__actions {
+  display: none;
+}
+
+.dictionary[data-selected='true'] {
+  background: var(--accent-soft);
+}
+
+.dictionary__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+/* Tombol aksi memakai glyph; ukurannya disamakan agar tidak ada glyph yang lebih kecil
+   dari area klik minimum. */
+.dictionary__actions .button--icon {
+  min-width: 32px;
+  padding-inline: 0.3rem;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+
+/* Hapus per baris: warna bahaya hanya muncul saat hover/fokus, bukan diam-diam menyala di
+   setiap baris. Alasan: di daftar padat, satu tombol merah per kamus menjadi titik paling
+   mencolok dan mengalahkan hierarki baris (nama + status). Niat pengguna baru terbaca saat
+   pointer/fokus berada di tombol, dan dialog konfirmasi tetap menjaga tindakannya. */
+.dictionary__actions .button--danger {
+  border-color: var(--border);
+  background: transparent;
+  color: var(--muted);
+}
+
+.dictionary__actions .button--danger:hover:not(:disabled),
+.dictionary__actions .button--danger:focus-visible {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+  color: var(--danger);
+}
+
+/* Chevron Detail: rotasi 180° menandai keadaan terbuka (umpan balik keadaan, bukan hiasan). */
+.dictionary__detail-toggle {
+  color: var(--muted);
+  transition: transform 120ms ease;
+}
+
+.dictionary__detail-toggle[aria-expanded='true'] {
+  color: var(--fg);
+  transform: rotate(180deg);
+}
+
+.dictionary__head h3 {
+  margin: 0;
+  overflow: hidden;
+  font-size: 0.96rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dictionary__handle {
+  color: var(--faint);
+  cursor: grab;
+  font-size: 1.05rem;
+  line-height: 1;
+  user-select: none;
+}
+
+.dictionary__handle:active {
+  cursor: grabbing;
+}
+
+.dictionary__facts {
+  margin-inline-start: auto;
+  white-space: nowrap;
+}
+
+.dictionary__detail {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-top: 0.55rem;
+  border-top: 1px solid var(--border);
+  padding-top: 0.55rem;
+}
+
+/* Umpan balik seret: baris asal diredupkan, baris tujuan ditandai garis aksen. */
+.dictionary--dragging {
+  opacity: 0.55;
+}
+
+.dictionary[data-drop='before'] {
+  box-shadow: 0 -2px 0 0 var(--accent);
+}
+
+.dictionary[data-drop='after'] {
+  box-shadow: 0 2px 0 0 var(--accent);
+}
+
+.dictionary__title h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.dictionary__actions {
+  display: flex;
+  gap: 0.3rem;
+  flex-wrap: wrap;
+}
+
+.dialog {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem 1.1rem;
+  max-width: min(92vw, 460px);
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.dialog::backdrop {
+  background: rgb(0 0 0 / 45%);
+}
+
+#import-progress progress {
+  accent-color: var(--accent);
+}
+
+/* Daftar berkas impor paralel: satu baris per berkas dengan statusnya. */
+.import-files {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.import-file {
+  display: flex;
+  gap: 0.6rem;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 0.25rem 0.4rem;
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+
+.import-file__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.import-file__status {
+  flex: none;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.import-file[data-state='running'] {
+  background: var(--accent-soft);
+}
+
+.import-file[data-state='done'] .import-file__status {
+  color: var(--success);
+}
+
+.import-file[data-state='failed'] .import-file__status {
+  color: var(--danger);
+}
+
+.import-file[data-state='queued'] {
+  opacity: 0.65;
+}
+
+/* Keadaan sibuk baris kamus: indikator tak-tentu selama transaksi hapus berjalan. */
+.dictionary--busy {
+  border-color: var(--accent);
+}
+
+.dictionary__busy {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  margin-top: 0.5rem;
+}
+
+.dictionary__busy progress {
+  accent-color: var(--accent);
+  width: 8rem;
+}
+
+.import-message--error {
+  color: var(--danger);
+}
+
+.import-message--ok {
+  color: var(--success);
+}
+
+.settings { gap: 1rem; max-width: 1040px; padding: 1.6rem 1.25rem 3rem; }
+.settings__header { align-items: center; padding-bottom: 0.85rem; }
+.settings__header h1 { margin: 0; }
+.settings__header .note { margin-top: 0.2rem; }
+
+.tabs {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  gap: 0.25rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.tab { min-height: 34px; border-color: transparent; border-radius: 7px; padding: 0.35rem 0.85rem; background: transparent; }
+.tab[aria-selected='true'] { box-shadow: 0 2px 7px color-mix(in srgb, var(--accent) 22%, transparent); }
+
+.panel { gap: 1rem; }
+.panel > .card > h2 { padding-bottom: 0.35rem; border-bottom: 1px solid var(--border); }
+.dictionary, .site { border-radius: 10px; padding: 0.75rem 0.85rem; box-shadow: var(--shadow-sm); }
+.dictionary__title h3 { font-size: 0.96rem; }
+.dictionary__actions { align-items: center; }
+.dictionary__actions .button { min-height: 30px; }
+.dictionary__actions .button--icon { min-width: 30px; }
+
+.row label, label.row { min-height: 36px; }
+label.row > span:first-child { flex: 1; }
+label.row input[type='number'] { width: 8rem; }
+label.row select { min-width: 8rem; }
+#setting-scan-all { accent-color: var(--accent); }
+
+#import-hint, #limits-summary { line-height: 1.55; }
+#import-progress { padding: 0.65rem; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); }
+#global-status { min-height: 1.25rem; }
+.dialog { box-shadow: var(--shadow-md); }
+
+@media (max-width: 620px) {
+  .settings { padding: 1rem 0.75rem 2rem; }
+  .settings__header { align-items: flex-start; }
+  .dictionary > .row--between { align-items: flex-start; }
+  .dictionary__actions { justify-content: flex-end; }
+}

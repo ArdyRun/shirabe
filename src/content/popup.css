@@ -1,0 +1,200 @@
+/**
+ * Gaya popup dalam halaman (di dalam shadow DOM tertutup).
+ *
+ * Token desain dan gaya kartu entri/panel kamus berasal dari berkas bersama
+ * (`tokens.css`, `results.css`) sehingga popup, action popup, dan halaman pencarian
+ * memakai sistem visual yang sama. Berkas ini mengatur cangkang popup (header, area
+ * gulir, footer petunjuk, tombol ikon) sekaligus arah visualnya: siku, tanpa blur.
+ */
+
+@import '../styles/tokens.css';
+@import '../styles/results.css';
+
+/* ------------------------------------------- arah visual: sudut siku, tepi keras */
+
+/* Popup melayang di atas halaman situs mana pun, jadi bentuknya dibuat tegas: seluruh
+   sudut siku dan elevasi memakai tepi keras (tanpa blur). Nilai dipasang pada elemen
+   bertema (`.panel`) supaya halaman extension tetap bersudut membulat; `tokens.css` juga
+   mendefinisikan `--r-*` dan `--shadow-*` pada `[data-theme]`, dan blok ini berada
+   setelah `@import` sehingga menang. */
+.panel {
+  --r-xs: 0;
+  --r-sm: 0;
+  --r-md: 0;
+  --r-lg: 0;
+  --r-pill: 0;
+  --shadow-lg: 4px 4px 0 var(--border-strong);
+}
+
+:host {
+  all: initial;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2147483647;
+  contain: layout style;
+}
+
+:host([hidden]) {
+  display: none;
+}
+
+.panel {
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  /* Lebar bawaan Hachidori; tinggi tetap otomatis mengikuti isi (bukan 420px tetap). */
+  width: 560px;
+  max-width: min(94vw, 680px);
+  max-height: min(72vh, 520px);
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  background: var(--bg);
+  color: var(--fg);
+  font-family:
+    system-ui, -apple-system, 'Segoe UI', 'Noto Sans JP', sans-serif;
+  font-size: var(--fs-body);
+  line-height: 1.45;
+  text-align: left;
+  box-shadow: var(--shadow-lg);
+}
+
+/* ------------------------------------------------- header (jl-header) */
+
+/* Strip tab sumber kamus + status + tombol tutup dalam satu baris: kata yang dipindai
+   tidak lagi ditampilkan di sini (kartu entri yang menampilkannya). */
+.panel__header {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+  flex: 0 0 auto;
+  border-bottom: 1px solid var(--border);
+  padding: var(--s3) var(--s4);
+  background: var(--surface);
+}
+
+.panel__status {
+  color: var(--faint);
+  font-size: 11px;
+  text-transform: lowercase;
+  white-space: nowrap;
+}
+
+.panel__toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  flex: 0 0 auto;
+}
+
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: var(--fs-body);
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  background: var(--raised);
+  color: var(--fg);
+}
+
+.icon-button:active {
+  background: var(--border);
+}
+
+/* Strip tab sumber kamus di header. */
+.panel__tabs:empty {
+  display: none;
+}
+
+.panel__tabs {
+  display: flex;
+  gap: var(--s2);
+  /* Wajib: tanpa `min-width: 0` strip menolak menyusut dan tab terakhir terpotong
+     tanpa bisa digulir. */
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+/* ---------------------------------------------------------------- isi */
+
+.panel__body {
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  padding: var(--s4);
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+.panel__body::-webkit-scrollbar {
+  width: 8px;
+}
+
+.panel__body::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: var(--r-pill);
+  background: var(--border-strong);
+  background-clip: content-box;
+}
+
+@media (max-width: 360px) {
+  .panel {
+    max-width: calc(100vw - 16px);
+  }
+
+  .panel__status {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .panel {
+    border-color: CanvasText;
+  }
+}
+
+/* ------------------------------------------------- kartu entri di dalam popup */
+
+/* Entri terpilih ditandai garis aksen penuh + latar aksen lembut. Batang aksen di tepi
+   kiri bawaan `results.css` dibuang: pada kartu bersudut siku batang itu terbaca sebagai
+   dekorasi, bukan sebagai penanda pilihan. */
+.panel .entry[data-selected='true'] {
+  background: var(--accent-soft);
+  box-shadow: none;
+}
+
+/* ------------------------------------------------- pegangan ubah ukuran */
+
+/* Meniru `gsm-hoshidicts-resize-handle`: sudut kanan bawah, kursor resize. */
+.panel__resize {
+  position: absolute;
+  inset-inline-end: 0;
+  bottom: 0;
+  width: 16px;
+  height: 16px;
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.panel__resize::after {
+  content: '';
+  position: absolute;
+  inset-inline-end: 3px;
+  bottom: 3px;
+  width: 6px;
+  height: 6px;
+  border-inline-end: 2px solid var(--border-strong);
+  border-bottom: 2px solid var(--border-strong);
+}

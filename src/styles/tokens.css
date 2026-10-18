@@ -1,0 +1,152 @@
+/**
+ * Token desain Shirabe: palet katalog, token semantik, jarak, radius, dan tipografi.
+ *
+ * Struktur mengikuti sistem tema Hachidori/GSM (lihat `src/core/themes.ts`):
+ *
+ * 1. **Palet mentah** (`--pal-*`) berasal dari katalog tema. Nilai bawaan di bawah adalah
+ *    palet milik Shirabe; `src/ui/theme.ts` menimpanya secara inline sesuai tema yang
+ *    dipilih (termasuk tema katalog lain), sehingga tidak perlu satu blok CSS per tema.
+ * 2. **Token semantik** (`--bg`, `--fg`, `--accent`, …) diturunkan sekali dari palet
+ *    dengan `color-mix` memakai rasio yang sama seperti referensi (teks redup 76%/56%,
+ *    garis 16%/30%, aksen lembut 16%, kartu 72% base-100 + base-200).
+ *
+ * Karena turunan memakai `var(--pal-*)` yang selalu punya nilai bawaan, tampilan tetap
+ * benar walau JavaScript belum berjalan (tanpa kedipan sebelum tema tersimpan dibaca).
+ *
+ * Dipakai oleh halaman extension (`base.css`) maupun popup dalam halaman (`popup.css`);
+ * tema diterapkan sebagai atribut pada elemen target (`html` atau panel popup) sehingga
+ * tetap mewarisi ke seluruh turunannya.
+ */
+
+:root,
+[data-theme='light'] {
+  /* Palet bawaan = tema Shirabe terang. */
+  --pal-scheme: light;
+  --pal-base-100: #ffffff;
+  --pal-base-200: #eef0f6;
+  --pal-base-300: #e9ebf3;
+  --pal-content: #1b1c23;
+  --pal-primary: #5f4fd8;
+  --pal-primary-content: #ffffff;
+  --pal-secondary: #4b5bbf;
+  --pal-secondary-content: #ffffff;
+  --pal-accent: #1f6f63;
+  --pal-accent-content: #ffffff;
+  --pal-neutral: #e9ebf3;
+  --pal-neutral-content: #1b1c23;
+  --pal-info: #1f5678;
+  --pal-info-content: #ffffff;
+  --pal-success: #1d6f42;
+  --pal-warning: #8a5a12;
+  --pal-error: #b3261e;
+}
+
+[data-theme='dark'] {
+  /* Palet bawaan = tema Shirabe gelap. */
+  --pal-scheme: dark;
+  --pal-base-100: #16171c;
+  --pal-base-200: #212228;
+  --pal-base-300: #2b2c34;
+  --pal-content: #edeef4;
+  --pal-primary: #a89ce4;
+  --pal-primary-content: #16121f;
+  --pal-secondary: #7f8fd8;
+  --pal-secondary-content: #101322;
+  --pal-accent: #84a99e;
+  --pal-accent-content: #14231f;
+  --pal-neutral: #2b2c34;
+  --pal-neutral-content: #edeef4;
+  --pal-info: #8db0cb;
+  --pal-info-content: #0f1c24;
+  --pal-success: #7fb08d;
+  --pal-warning: #c9a068;
+  --pal-error: #cf878b;
+}
+
+/* --------------------------------------------------- token semantik dari palet */
+
+/* CATATAN PENTING: selektor `[data-theme]` wajib ada di setiap blok di bawah. Popup
+   dirender di dalam shadow DOM tertutup, dan `:root` **tidak cocok** di dalam shadow
+   tree (root-nya bukan elemen). Tanpa `[data-theme]`, token tidak pernah terpasang pada
+   panel popup: latar menjadi transparan dan warna teks ikut halaman (gejala: hanya teks
+   putih transparan). Palet diterapkan `src/ui/theme.ts` pada `html` (halaman extension)
+   atau `.panel` (popup), jadi atribut itu selalu ada pada elemen yang tepat. */
+:root,
+[data-theme] {
+  --bg: var(--pal-base-100);
+  --bg-elevated: color-mix(in srgb, var(--pal-base-100) 88%, var(--pal-base-300));
+  --surface: var(--pal-base-200);
+  --card: color-mix(in srgb, var(--pal-base-100) 72%, var(--pal-base-200));
+  --card-hover: color-mix(in srgb, var(--pal-base-100) 46%, var(--pal-base-200));
+  --raised: var(--pal-base-300);
+  --border: color-mix(in srgb, var(--pal-content) 16%, var(--pal-base-100));
+  --border-strong: color-mix(in srgb, var(--pal-content) 30%, var(--pal-base-100));
+  --fg: var(--pal-content);
+  --muted: color-mix(in srgb, var(--pal-content) 76%, var(--pal-base-100));
+  --faint: color-mix(in srgb, var(--pal-content) 56%, var(--pal-base-100));
+  --accent: var(--pal-primary);
+  --accent-strong: color-mix(in srgb, var(--pal-primary) 78%, var(--pal-content));
+  --accent-soft: color-mix(in srgb, var(--pal-primary) 16%, var(--pal-base-100));
+  --accent-fg: var(--pal-primary-content);
+  --success: var(--pal-success);
+  --warning: var(--pal-warning);
+  --danger: var(--pal-error);
+  --info: var(--pal-info);
+  color-scheme: var(--pal-scheme);
+}
+
+/* --------------------------------------------------------- jarak, radius, tipografi */
+
+/* Bayangan diturunkan dari base-300 supaya netral di tema terang maupun gelap. */
+:root,
+[data-theme] {
+  --shadow-sm: 0 1px 3px color-mix(in srgb, var(--pal-base-300) 55%, transparent);
+  --shadow-md: 0 10px 28px color-mix(in srgb, var(--pal-base-300) 62%, transparent);
+  --shadow-lg: 0 18px 48px color-mix(in srgb, var(--pal-base-300) 72%, transparent);
+
+  /* Jarak: skala 2/4/6/8/12/16 px seperti sistem Hachidori, supaya kepadatan konsisten. */
+  --s1: 2px;
+  --s2: 4px;
+  --s3: 6px;
+  --s4: 8px;
+  --s5: 12px;
+  --s6: 16px;
+
+  /* Radius seragam untuk seluruh komponen. */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* Tipografi: ukuran per peran, bukan per komponen. Skala mengikuti Hachidori
+     (expression 32px, glosarium 16px, judul kartu kamus 13px, tag 12px, tag kecil 11px)
+     supaya kepadatan popup setara. */
+  --fs-headword: 32px;
+  --fs-gloss: 16px;
+  --fs-body: 13px;
+  --fs-label: 13px;
+  --fs-tiny: 12px;
+  --lh-gloss: 1.5;
+
+  /* Font teks bacaan. Bawaannya mewarisi permukaan (sans), jadi hanya tema yang memilih
+     serif di blok berikut yang mengubahnya. */
+  --font-reading: inherit;
+}
+
+/* Tema "pembaca" memakai serif untuk teks bacaan: meniru tipografi buku/e-ink supaya
+   kepala entri dan definisi terasa seperti halaman cetak, sementara tab/tombol/status
+   tetap sans agar masih terbaca sebagai kontrol.
+   Selektor `[data-theme]` wajib ada di sini: popup berada di dalam shadow DOM tertutup,
+   dan `data-theme-name` dipasang pada elemen bertema oleh `src/ui/theme.ts`. */
+[data-theme][data-theme-name='ereader-light'],
+[data-theme][data-theme-name='ereader-dark'] {
+  --font-reading: 'Hiragino Mincho ProN', 'Yu Mincho', 'Noto Serif JP', 'Noto Serif CJK JP',
+    'Source Han Serif JP', Georgia, 'Times New Roman', serif;
+}
+
+/* Saat tema tersimpan belum terbaca, antarmuka disembunyikan supaya tidak berkedip
+   dengan palet bawaan (pola Hachidori `data-hoshidicts-theme-pending`). */
+html[data-theme-pending] body {
+  visibility: hidden;
+}

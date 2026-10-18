@@ -1,0 +1,6 @@
+{"type": "shirabe-dictionary", "schemaVersion": 1, "id": "demo-multi-sense", "name": "Kamus Multi-Sense (data uji)", "language": "ja", "definitionLanguage": "id", "license": "CC0-1.0 — data uji buatan sendiri", "attribution": "Tim Shirabe"}
+{"expression": "傾ける", "reading": "かたむける", "definitions": ["memiringkan", "mencondongkan"], "partOfSpeech": ["v1", "vt"], "tags": ["1", "ichi"], "rules": ["v1"]}
+{"expression": "傾ける", "reading": "かたむける", "definitions": ["mencurahkan perhatian"], "partOfSpeech": ["v1", "vt"], "tags": ["2", "ichi"], "rules": ["v1"]}
+{"expression": "傾ける", "reading": "かたむける", "definitions": ["merusak", "menghabiskan"], "partOfSpeech": ["v1", "vt"], "tags": ["3"], "rules": ["v1"]}
+{"expression": "傾ける", "reading": "かたむける", "definitions": ["menenggak (alkohol)"], "partOfSpeech": ["v1", "vt"], "tags": ["4"], "rules": ["v1"]}
+{"expression": "傾げる", "reading": "かたげる", "definitions": ["memiringkan sedikit"], "partOfSpeech": ["v1", "vt"], "tags": [], "rules": ["v1"]}
