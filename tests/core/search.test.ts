@@ -161,6 +161,96 @@ describe('lookup: exact dan kandidat terpanjang', () => {
   });
 });
 
+describe('peringkat lintas kamus: kecocokan lebih panjang menang atas prioritas kamus', () => {
+  // Kasus nyata (laporan pemilik produk): di halaman ada `呼んだ`, dan JMnedict yang
+  // ditempatkan lebih awal memuat nama keluarga satu kanji `呼`. Sebelumnya prioritas kamus
+  // diurutkan lebih dulu, sehingga entri nama itu muncul di depan `呼ぶ` dari JMdict.
+  const source = createMemorySource([
+    {
+      expression: '呼',
+      reading: 'こ',
+      definitions: ['nama keluarga'],
+      partOfSpeech: ['n'],
+      dictionaryId: 'jmnedict',
+      dictionaryName: 'JMnedict',
+      dictionaryOrder: 0,
+    },
+    {
+      expression: '呼ぶ',
+      reading: 'よぶ',
+      definitions: ['memanggil'],
+      partOfSpeech: ['v5b'],
+      rules: ['v5b'],
+      dictionaryId: 'jmdict',
+      dictionaryName: 'JMdict',
+      dictionaryOrder: 1,
+    },
+  ]);
+
+  it('呼んだ → 呼ぶ (JMdict) mendahului 呼 (JMnedict) yang cocok satu karakter', async () => {
+    const result = await lookup('呼んだ', source);
+    expect(result.matches[0]?.entry.expression).toBe('呼ぶ');
+    expect(result.matches.map((match) => match.entry.expression)).toContain('呼');
+  });
+
+  it('homomim dengan panjang sama tetap mengikuti prioritas kamus pengguna', async () => {
+    const homonyms = createMemorySource([
+      {
+        expression: '橋',
+        reading: 'はし',
+        definitions: ['jembatan'],
+        partOfSpeech: ['n'],
+        dictionaryId: 'kedua',
+        dictionaryOrder: 1,
+      },
+      {
+        expression: '橋',
+        reading: 'はし',
+        definitions: ['jembatan (kamus utama)'],
+        partOfSpeech: ['n'],
+        dictionaryId: 'utama',
+        dictionaryOrder: 0,
+      },
+    ]);
+    const result = await lookup('橋', homonyms);
+    expect(result.matches[0]?.entry.dictionaryId).toBe('utama');
+  });
+});
+
+describe('fragmen deinflection dari jendela pendek tidak menutupi hasil', () => {
+  // Kasus nyata: kursor di tengah `呼んだ` membuat jendela `んだ` ikut diuji. Deinflection
+  // `んだ` menghasilkan む/ぬ/ん, dan karena pencarian bacaan aktif, entri bacaan satu kanji
+  // (無, 不, 六, …) ikut cocok — belasan kartu palsu di atas kata sebenarnya.
+  const source = createMemorySource([
+    { expression: '呼ぶ', reading: 'よぶ', definitions: ['memanggil'], partOfSpeech: ['v5b'], rules: ['v5b'] },
+    { expression: '無', reading: 'む', definitions: ['tidak ada'], partOfSpeech: ['n'] },
+    { expression: '不', reading: 'ふ', definitions: ['bukan'], partOfSpeech: ['n'] },
+    { expression: '六', reading: 'む', definitions: ['enam'], partOfSpeech: ['num'] },
+    { expression: 'んだ', reading: 'んだ', definitions: ['kopula percakapan'], partOfSpeech: ['aux'] },
+  ]);
+
+  it('kursor di dalam 呼んだ: 呼ぶ tampil, fragmen bacaan satu kanji tidak', async () => {
+    const result = await lookup('呼んだ', source, { caretOffset: 2 });
+    const expressions = result.matches.map((match) => match.entry.expression);
+    expect(expressions[0]).toBe('呼ぶ');
+    expect(expressions).not.toContain('無');
+    expect(expressions).not.toContain('六');
+    // Entri exact yang benar-benar tertulis tetap dilaporkan.
+    expect(expressions).toContain('んだ');
+  });
+
+  it('fragmen awalan (bukan akhiran) tetap dipertahankan', async () => {
+    // `東京` adalah awalan dari jendela `東京都`, bukan akhiran: teks yang sama tidak
+    // dijelaskan olehnya, jadi keduanya tetap tampil terpanjang dahulu.
+    const places = createMemorySource([
+      { expression: '東京都', reading: 'とうきょうと', definitions: ['Tokyo'], partOfSpeech: ['n'] },
+      { expression: '東京', reading: 'とうきょう', definitions: ['Tokyo (kota)'], partOfSpeech: ['n'] },
+    ]);
+    const result = await lookup('東京都', places);
+    expect(result.matches.map((match) => match.entry.expression)).toEqual(['東京都', '東京']);
+  });
+});
+
 describe('lookup: kamus besar dengan entry satu karakter (regresi JMdict)', () => {
   // Kamus nyata memuat entry satu kanji (食, 書, 高, 行) dan partikel kana (は).
   // Kandidat yang lebih panjang harus tetap menang karena deinflection dijalankan

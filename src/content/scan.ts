@@ -1,28 +1,29 @@
 /**
  * Penentuan kandidat kata dari posisi pointer (PRD 4.1, 6.3 langkah 1–4).
  *
+ * Aturan awal kandidat: **mulai dari karakter di bawah kursor, lalu maju**. Tidak ada
+ * karakter sebelum kursor yang ikut dipindai, sehingga menyapu `んだ` di dalam `呼んだ`
+ * memindai `んだ` — bukan `呼んだ`. Ini perilaku yang sama dengan Hachidori
+ * (`content.js`: `alignToCharacter` menggeser caret ke karakter di bawah pointer, lalu
+ * `collectScanEntries` berjalan maju saja) dan Yomitan (untuk bahasa tanpa spasi offset
+ * awal tidak digeser ke awal kata). Konsekuensinya, pemindaian dimulai dari karakter
+ * pertama kata: kursor di tengah kata majemuk (`日本語`) hanya memindai sisanya.
+ *
  * Content script hanya mengirim kueri (kandidat kata) ke service worker; teks halaman di
  * sekitar kursor tidak pernah dikirim atau disimpan.
  *
- * Batas kata bahasa Jepang tidak dapat ditentukan tanpa parser (PRD 13). Karena itu
- * awal kandidat didekati dengan heuristik kelas karakter:
- * - jika kursor berada di kanji, mundur selama masih kanji (mis. 学生 dari 私は学生です);
- * - jika kursor berada di kana, mundur selama masih kana, lalu ikut menyertakan
- *   rangkaian kanji tepat sebelumnya (mis. 食べたい, 書きます).
- * Search core kemudian mencoba prefix terpanjang dari titik awal yang dikirim, jadi
- * kandidat yang lebih pendek/panjang tetap mendapat kesempatan dicocokkan.
+ * Batas kata bahasa Jepang tidak dapat ditentukan tanpa parser (PRD 13), jadi kandidat
+ * dibatasi dengan dua cara: mulai dari karakter di bawah kursor, lalu maju selama masih
+ * karakter kata sampai batas 32 code point. Search core mencoba prefix terpanjang dari
+ * titik awal itu, sehingga bentuk yang lebih pendek tetap mendapat kesempatan dicocokkan.
  */
 
 import {
   MAX_CANDIDATE_CODE_POINTS,
   characterClass,
-  isJapaneseCodePoint,
   isWordCodePoint,
   toCodePoints,
 } from '../core/text.js';
-
-/** Seberapa jauh awal kandidat boleh mundur dari posisi kursor. */
-export const MAX_LOOKBACK_CODE_POINTS = 16;
 
 export interface ScanCandidate {
   /** Kandidat kueri: rentetan karakter kata, maksimum 32 code point. */
@@ -31,12 +32,11 @@ export interface ScanCandidate {
    * Segmen kelas karakter di sekitar kursor (kanji/kana/katakana), maksimum
    * {@link MAX_SEGMENT_CODE_POINTS} code point.
    *
-   * Dipakai UI sebagai teks kueri yang ditampilkan: kandidat lookup sendiri dibiarkan
-   * lebar (termasuk kanji sebelum kana, untuk dasar kata kerja seperti `食べる`), tetapi
-   * menampilkan seluruh rangkaian tanpa spasi sebagai "kata yang dicari" menyesatkan —
-   * pesan "tidak ada hasil" lalu memuat satu kalimat penuh. Hachidori menampilkan teks
-   * pindai (dari kursor, `scanLength` code point); segmen kelas ini adalah bentuk
-   * setaranya untuk tampilan.
+   * Dipakai UI sebagai teks kueri yang ditampilkan: kandidat lookup dibiarkan maju sampai
+   * 32 code point (kata majemuk panjang), tetapi menampilkan seluruh rangkaian tanpa spasi
+   * sebagai "kata yang dicari" menyesatkan — pesan "tidak ada hasil" lalu memuat satu
+   * kalimat penuh. Hachidori menampilkan teks pindai (`scanLength` code point); segmen
+   * kelas ini adalah bentuk setaranya untuk tampilan.
    */
   segment: string;
   /** Indeks awal kandidat dalam text node, satuan code point. */
@@ -45,67 +45,6 @@ export interface ScanCandidate {
   end: number;
   /** Posisi kursor relatif terhadap awal kandidat, satuan code point. */
   caretOffset: number;
-}
-
-function isKanjiCodePoint(codePoint: string): boolean {
-  return isJapaneseCodePoint(codePoint) && !isKana(codePoint);
-}
-
-function isKana(codePoint: string): boolean {
-  const cp = codePoint.codePointAt(0);
-  if (cp === undefined) {
-    return false;
-  }
-  return (
-    (cp >= 0x3040 && cp <= 0x309f) ||
-    (cp >= 0x30a0 && cp <= 0x30ff) ||
-    (cp >= 0x31f0 && cp <= 0x31ff) ||
-    (cp >= 0xff66 && cp <= 0xff9f) ||
-    cp === 0x301c
-  );
-}
-
-/**
- * Tentukan awal kandidat dengan mundur dari `anchor`, maksimum
- * `MAX_LOOKBACK_CODE_POINTS` code point.
- */
-function startForAnchor(codePoints: readonly string[], anchor: number): number {
-  const atAnchor = codePoints[anchor] ?? '';
-  let limit = Math.max(0, anchor - MAX_LOOKBACK_CODE_POINTS);
-
-  if (isKanjiCodePoint(atAnchor)) {
-    while (limit < anchor && isKanjiCodePoint(codePoints[anchor - 1] ?? '')) {
-      anchor -= 1;
-    }
-    return Math.max(anchor, limit);
-  }
-
-  // Kana (atau karakter non-Jepang): mundur selama kana/latin serupa.
-  let start = anchor;
-  while (start > limit && isSameScript(codePoints[start - 1] ?? '', atAnchor)) {
-    start -= 1;
-  }
-  // Ikut sertakan rangkaian kanji tepat sebelum kana (dasar kata kerja/adjektiva).
-  if (isKana(atAnchor) && start > 0 && isKanjiCodePoint(codePoints[start - 1] ?? '')) {
-    while (start > limit && isKanjiCodePoint(codePoints[start - 1] ?? '')) {
-      start -= 1;
-    }
-  }
-  return start;
-}
-
-function isSameScript(candidate: string, reference: string): boolean {
-  if (!isWordCodePoint(candidate)) {
-    return false;
-  }
-  if (isKana(reference)) {
-    return isKana(candidate);
-  }
-  if (isKanjiCodePoint(reference)) {
-    return isKanjiCodePoint(candidate);
-  }
-  // Latin/digit: perlakukan sebagai satu kelas.
-  return !isJapaneseCodePoint(reference) && !isJapaneseCodePoint(candidate);
 }
 
 /**
@@ -133,7 +72,9 @@ export function candidateFromText(
     return null;
   }
 
-  const start = startForAnchor(codePoints, anchor);
+  // Kandidat dimulai dari karakter di bawah kursor lalu maju; tidak ada karakter sebelum
+  // kursor yang ikut dipindai (lihat catatan modul).
+  const start = anchor;
 
   let end = start;
   while (end < codePoints.length && end - start < maxCandidateCodePoints) {
@@ -148,7 +89,7 @@ export function candidateFromText(
 
   return {
     query: codePoints.slice(start, end).join(''),
-    segment: segmentAround(codePoints, anchor, start, end),
+    segment: segmentAround(codePoints, anchor, end),
     start,
     end,
     caretOffset: Math.min(Math.max(anchor - start, 0), end - start - 1),
@@ -157,9 +98,6 @@ export function candidateFromText(
 
 /** Panjang maksimum teks kueri yang ditampilkan (code point). */
 const MAX_SEGMENT_CODE_POINTS = 12;
-
-/** Panjang maksimum rentetan kana yang masih dianggap okurigana dasar kata. */
-const MAX_OKURIGANA_CODE_POINTS = 4;
 
 /**
  * Segmen kelas karakter di sekitar kursor untuk **ditampilkan** sebagai kata yang dicari.
@@ -174,7 +112,6 @@ const MAX_OKURIGANA_CODE_POINTS = 4;
 function segmentAround(
   codePoints: readonly string[],
   anchor: number,
-  candidateStart: number,
   candidateEnd: number,
 ): string {
   const anchorClass = characterClass(codePoints[anchor] ?? '');
@@ -182,25 +119,13 @@ function segmentAround(
     codePoint !== undefined && characterClass(codePoint) === anchorClass;
 
   let start = anchor;
-  while (start > candidateStart && sameClass(codePoints[start - 1])) {
-    start -= 1;
-  }
   let end = anchor + 1;
   while (end < candidateEnd && sameClass(codePoints[end])) {
     end += 1;
   }
-  // Dasar kata: sertakan kanji tepat sebelum kana bila rentetan kananya masih sepanjang
-  // okurigana (`食べる`), bukan seluruh kata sebelumnya (`陸上部` + `だったので`).
-  if (anchorClass === 'hiragana' && end - start <= MAX_OKURIGANA_CODE_POINTS) {
-    while (start > candidateStart && characterClass(codePoints[start - 1] ?? '') === 'kanji') {
-      start -= 1;
-    }
-  }
   if (end - start > MAX_SEGMENT_CODE_POINTS) {
-    // Terlalu panjang: pusatkan pada kursor agar tetap terbaca.
-    const half = Math.floor(MAX_SEGMENT_CODE_POINTS / 2);
-    start = Math.max(start, anchor - half);
-    end = Math.min(end, start + MAX_SEGMENT_CODE_POINTS);
+    // Terlalu panjang: mulai dari kursor agar teks yang ditampilkan tetap terbaca.
+    end = start + MAX_SEGMENT_CODE_POINTS;
   }
   return codePoints.slice(start, end).join('');
 }

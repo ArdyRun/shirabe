@@ -1423,3 +1423,106 @@ Konsekuensi aksesibilitas: setiap tombol glyph tetap punya `aria-label` (nama un
 | e2e | "Tombol glyph tetap punya nama aksesibel dan tooltip": `↑→Naikkan prioritas · ↓→Turunkan prioritas · ⏻→Nonaktifkan · ✕→Hapus · ▾→Detail`; seluruh pemeriksaan sebelumnya tetap lulus (125) |
 | Kontras (alat `check_contrast`) | glyph hapus saat hover: `#cf878b` di atas `#30272c` = **5,16:1** (≥4,5:1) |
 | Tangkapan layar diperiksa | baris normal (glyph seragam, ↑ baris pertama nonaktif), baris saat hover (Hapus menyala bahaya), lebar 480 px (aksi turun ke baris kedua, tanpa overflow) |
+
+### 4.30 Popup terasa lambat saat menyapu kursor: debounce → throttle
+
+Laporan pemilik produk: menahan modifier lalu menyapu kursor ke beberapa kata terasa ngelag,
+sementara Hachidori "fast banget" pada gerakan yang sama.
+
+**Penyebab (perilaku, bukan mikro-optimasi)**: `#scheduleHover` memakai pola **debounce** —
+timer di-`cancel` dan dimulai ulang pada setiap `pointermove`. Selama kursor terus bergerak,
+pemindaian tidak pernah berjalan, sehingga popup baru muncul setelah kursor berhenti 90 ms.
+Hachidori memakai **throttle** yang tidak di-restart (`extension/content.js`:
+*"Trailing-edge throttle: at most one scan per hoverDelayMs, always at the pointer's latest
+position"*, `hoverDelayMs` default 0).
+
+**Perbaikan**
+
+| Perubahan | Alasan |
+|---|---|
+| `createThrottle()` (`src/content/throttle.ts`, baru): satu timer per interval, tidak di-restart, `run` membaca posisi pointer terbaru | Menyapu kursor tetap memindai pada laju tetap, seperti Hachidori |
+| `SCAN_THROTTLE_MS = 40` menggantikan `HOVER_DEBOUNCE_MS = 90` | Satu pemindaian dapat memicu lookup service worker + render popup; 40 ms membatasi ±25 scan/detik, cukup untuk mengikuti sapuan sambil menjaga service worker |
+| Hit-test (`elementFromPoint` + `caretPositionFromPoint`) dipindah dari `pointermove` ke dalam pemindaian | Biaya layout per event pointer hilang; hit-test hanya sekali per interval (pola yang sama dengan Hachidori: `scanPointer` dijalankan dari timer) |
+
+**Pengukuran** (Chromium, 15 kata berbeda dari JMdict, kata yang tersorot dibaca dari
+`CSS.highlights` di halaman dengan cap waktu yang sama seperti gerakan kursor):
+
+| Sapuan | Debounce (sebelum) | Throttle (sesudah) |
+|---|---|---|
+| jeda 10 ms antar gerakan | **3/15** kata tersorot, median 97 ms | **14/15**, median 56 ms |
+| jeda 10 ms, lintasan kedua | **0/15** (popup tidak pernah muncul selama menyapu) | **15/15**, median 56 ms |
+| jeda 45 ms | 15/15, median 57 ms | 15/15, median 57 ms |
+| long task di thread utama | 0 | **0** (tidak ada jeda UI) |
+
+**Verifikasi**: `tests/content/throttle.test.ts` (4 test; termasuk kasus yang membedakan
+throttle dari debounce: penjadwalan berulang tiap 30 ms selama 300 ms harus tetap memanggil
+≥5 kali) dan e2e `Menyapu kursor antar kata tetap memperbarui sorotan/popup selama bergerak`
+(sorotan berubah 3–6 kali selama sapuan). Regresi: 325 unit test, 126 e2e, `tsc --noEmit`,
+build MV3.
+
+### 4.31 Peringkat lintas kamus dan fragmen deinflection
+
+Laporan pemilik produk: pada halaman ada `呼んだ`; Hachidori menampilkan `呼ぶ` (JMdict) sebagai
+hasil utama, sedangkan Shirabe menampilkan entri **nama keluarga `呼` dari JMnedict** lebih
+dahulu (kamus itu ditempatkan lebih awal), dan saat kursor berada di dalam kata, daftar hasil
+dipenuhi entri palsu ("berlaku juga ke beberapa kanji").
+
+**Dua penyebab, keduanya diperbaiki**
+
+| # | Penyebab | Perbaikan |
+|---|---|---|
+| 1 | `rankMatches` mengurutkan **prioritas kamus lebih dahulu** daripada panjang kecocokan, sehingga entri `呼` dari kamus yang lebih awal (cocok 1 code point) mengalahkan `呼ぶ` (cocok 3 code point dari `呼んだ`) | Panjang kecocokan diurutkan lebih dahulu; prioritas kamus tetap menentukan urutan untuk kecocokan sepanjang sama (homonim, mis. 橋/箸) dan menjadi tie-break berikutnya |
+| 2 | Seluruh jendela kandidat dikumpulkan (§4.17), sehingga jendela pendek `んだ` (kursor di `ん`) ikut terurai menjadi む/ぬ/ん dan—karena pencarian bacaan aktif—mencocokkan entri bacaan satu kanji: 無, 不, 六, ６, 陸, 无 … 12 kartu palsu | Fragmen **deinflection** yang merupakan *akhiran* dari jendela lebih panjang yang juga cocok dibuang. Kecocokan exact/reading tetap ditampilkan (itu bukti apa yang tertulis, bukan inferensi), dan fragmen **awalan** tetap dipertahankan (`東京` pada `東京都`) sesuai kontrak §4.17 |
+
+**Verifikasi**
+
+| Bukti | Hasil |
+|---|---|
+| Unit (`tests/core/search.test.ts`) | `呼んだ` dengan JMnedict (order 0, entri `呼`) + JMdict (order 1, `呼ぶ`) → `呼ぶ` peringkat pertama; homonim sepanjang sama tetap mengikuti prioritas kamus; `んだ`-derived `無`/`六` tidak muncul; `東京` tetap tampil bersama `東京都` |
+| Kamus nyata di Chromium (JMnedict + JMdict, urutan JMnedict lebih dulu) | kursor di `呼`: **1. `呼ぶ` (JMdict, `呼んだ→呼ぶ`), 2. `呼` (JMnedict, nama keluarga)** — sebelumnya nama keluarga itu yang pertama. Kursor di `ん`: 3 kartu (呼ぶ, んだ, ん) — sebelumnya 13 kartu dengan 12 entri bacaan satu kanji palsu |
+| Regresi | 329 unit test, 126 e2e, `tsc --noEmit`, build MV3 |
+
+**Pelajaran verifikasi**: probe yang memakai **profil Chromium yang sama** dapat menjalankan
+*service worker lama* (masalah cache yang sama dengan §4.12), sehingga perubahan baru tampak
+"tidak berpengaruh". Verifikasi akhir memakai profil bersih; unit test tidak terpengaruh karena
+tidak melewati service worker.
+
+**Catatan batas**: entri `呼` (nama keluarga) tetap muncul di bawah hasil utama karena ia
+memang cocok dengan karakter yang sama — sama seperti `東京` tetap muncul saat menelusuri
+`東京都`. Menyembunyikannya berarti preferensi baru (mis. "sembunyikan kamus nama dari tab
+Semua"), bukan perbaikan peringkat.
+
+### 4.32 Pemindaian mulai dari karakter di bawah kursor
+
+Laporan pemilik produk: menyapu `んだ` di dalam `呼んだ` tetap memindai `呼んだ`; yang
+diinginkan adalah pemindaian tidak menyertakan huruf **sebelum** kursor.
+
+**Perilaku referensi** (dibaca dari kode, bukan dari kesan): Hachidori membatasi pemindaian
+pada karakter di bawah pointer lewat dua langkah — `alignToCharacter` (`extension/content.js`)
+menggeser caret mundur satu karakter bila pointer berada di dalam kotak karakter sebelum
+caret, lalu `collectScanEntries` berjalan **maju saja** dari caret. Yomitan tidak menggeser
+offset awal ke awal kata untuk bahasa tanpa spasi (`SCAN_RESOLUTION_EXCLUDED_LANGUAGES`).
+
+**Perubahan di Shirabe**
+
+| Bagian | Sebelum | Sesudah |
+|---|---|---|
+| Awal kandidat (`src/content/scan.ts`) | Mundur dari anchor: sepanjang kanji bila kursor di kanji, sepanjang kana + kanji tepat sebelumnya bila kursor di kana (`startForAnchor`) | Kandidat dimulai **pada karakter di bawah kursor**, lalu maju sampai batas 32 code point |
+| Caret (`src/content/index.ts`) | Dipakai apa adanya dari `caretPositionFromPoint` (posisi sisipan, bergantung separuh glyph mana yang kena) | Digeser ke karakter yang benar-benar berada di bawah pointer (`pointedTextAtOffset`/`alignCaretToPoint`), pola `alignToCharacter` Hachidori |
+| Segmen tampilan | Menyertakan kanji dasar kata sebelum kana | Rentetan kelas karakter dari kursor saja |
+| Kode mati | `startForAnchor`, `isSameScript`, `isKana`, `MAX_LOOKBACK_CODE_POINTS`, cabang okurigana | Dihapus |
+
+**Verifikasi**
+
+| Bukti | Hasil |
+|---|---|
+| Kamus nyata (JMnedict + JMdict) | kursor di `ん` (separuh kiri **dan** separuh kanan): kartu pertama `んだ`; `呼ぶ`/`呼んだ` tidak lagi muncul. Kursor di `呼`: `呼ぶ` lalu `呼` (JMnedict). Kursor di `だ`: `だ` |
+| Unit (`tests/content/scan.test.ts`, 17 test) | kandidat mulai dari karakter di bawah kursor (`私は学生です。` kursor di 生 → `生です`), kanji sebelum kursor tidak disertakan (`食べたい` kursor di べ → `べたいです`), kursor di kanji tetap mencakup okurigana (`食べる` dari 食), batas 32 code point, segmen tampilan dari kursor |
+| e2e (127 pemeriksaan) | pemeriksaan baru: "Hover di karakter pertama kata tanpa spasi menemukan kata itu" dan "Kursor di tengah kata memindai dari karakter itu, bukan dari awal kata" (`日本語` → `本語`, tanpa hasil). Pemeriksaan lain disesuaikan ke aturan yang sama (だった dari だ, がな dari が, sorotan menyempit dari 学, penempatan popup memakai dua kata) |
+
+**Konsekuensi yang perlu diketahui**: kursor harus diarahkan ke **karakter pertama** sebuah
+kata — di tengah `日本語` hanya `本語` yang dipindai, dan `なんで` di dalam `がなんで…` tidak
+lagi muncul saat kursor di `が` (keduanya sama dengan perilaku Hachidori/Yomitan). Deinflection
+dari teks yang benar-benar dipindai tetap berjalan (`んだ` → `む`/`ぶ`), jadi entri seperti
+`無` masih bisa muncul di bawah hasil utama `んだ` — itu konsekuensi pencarian bacaan atas teks
+tersebut, bukan sisa pemindaian ke belakang.

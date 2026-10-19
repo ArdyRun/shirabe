@@ -394,7 +394,7 @@ async function popupText(page) {
  * Mengembalikan rect kursor (dari `caretPositionFromPoint` pada titik yang sama) dan
  * posisi popup, sehingga aturan penempatan dapat diperiksa secara langsung.
  */
-async function popupPlacementAt(page, selector, charIndex) {
+async function popupPlacementAt(page, selector, charIndex, offsetPx = 2) {
   // Pastikan tidak ada popup lama yang masih tampil: kalau ada, pengukuran bisa membaca
   // posisi popup sebelumnya (Escape pertama menutup detail, kedua menutup popup).
   await page.keyboard.press('Escape');
@@ -406,15 +406,15 @@ async function popupPlacementAt(page, selector, charIndex) {
     { timeout: 5000 },
   );
   const point = await page.evaluate(
-    ({ selector: sel, charIndex: index }) => {
+    ({ selector: sel, charIndex: index, offset }) => {
       const node = document.querySelector(sel).firstChild;
       const range = document.createRange();
       range.setStart(node, index);
       range.setEnd(node, index + 1);
       const rect = range.getBoundingClientRect();
-      return { x: rect.left + 2, y: rect.top + rect.height / 2 };
+      return { x: rect.left + offset, y: rect.top + rect.height / 2 };
     },
-    { selector, charIndex },
+    { selector, charIndex, offset: offsetPx },
   );
   await page.mouse.move(point.x, point.y);
   await page.waitForTimeout(80);
@@ -626,6 +626,30 @@ async function piercedNodesWithAttribute(page, name) {
   } finally {
     await session.detach();
   }
+}
+
+/**
+ * Titik (x, y) di tengah karakter ke-`index` di dalam sebuah elemen bertext.
+ *
+ * Dipakai pemeriksaan hover: pemindaian dimulai dari karakter di bawah kursor, jadi tes
+ * harus menunjuk karakter yang dimaksud, bukan sekadar tengah elemen.
+ */
+async function characterPoint(page, elementId, index = 0) {
+  return page.evaluate(
+    ([id, offset]) => {
+      const element = document.getElementById(id);
+      const node = element?.firstChild ?? null;
+      if (node === null || node.nodeType !== Node.TEXT_NODE) {
+        return null;
+      }
+      const range = document.createRange();
+      range.setStart(node, offset);
+      range.setEnd(node, offset + 1);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    },
+    [elementId, index],
+  );
 }
 
 async function waitForPopupText(page, needle, timeoutMs = 10000) {
@@ -1001,6 +1025,64 @@ async function main() {
     'Panah bawah tetap menyisakan tepat satu kartu terpilih',
     (await piercedNodes(page, { 'data-role': 'entry', 'data-selected': 'true' })).length === 1,
   );
+  // Menyapu kursor antar kata harus memperbarui popup *selama* kursor bergerak. Dulu timer
+  // pemindaian di-restart setiap gerakan (debounce), sehingga popup tidak pernah muncul
+  // selama kursor masih menyapu (0–3 dari 15 kata pada pengukuran §4.30).
+  const slideWordPosition = (word) =>
+    page.evaluate((needle) => {
+      const paragraph = document.getElementById('packed');
+      const node = paragraph?.firstChild ?? null;
+      if (node === null) {
+        return null;
+      }
+      const index = (node.nodeValue ?? '').indexOf(needle);
+      if (index < 0) {
+        return null;
+      }
+      const range = document.createRange();
+      range.setStart(node, index);
+      range.setEnd(node, index + needle.length);
+      const rect = range.getBoundingClientRect();
+      return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+    }, word);
+
+  const scrollBeforeSlide = await page.evaluate(() => window.scrollY);
+  await page.locator('#packed').scrollIntoViewIfNeeded();
+  await page.waitForTimeout(200);
+  await page.evaluate(() => {
+    window.__slideWords = [];
+    window.__slideTimer = setInterval(() => {
+      const set = CSS.highlights?.get('shirabe-match') ?? null;
+      const text = set === null ? '' : [...set].map((range) => range.toString()).join('');
+      if (text.length > 0 && window.__slideWords.at(-1) !== text) window.__slideWords.push(text);
+    }, 8);
+  });
+  await page.keyboard.down('Alt');
+  const slideTargets = ['陸上部', 'だった', '髪型', 'ショート'];
+  for (const word of slideTargets) {
+    const position = await slideWordPosition(word);
+    if (position !== null) {
+      await page.mouse.move(position.x, position.y);
+    }
+    await page.waitForTimeout(25);
+  }
+  await page.waitForTimeout(400);
+  await page.keyboard.up('Alt');
+  const slideWords = await page.evaluate(() => {
+    clearInterval(window.__slideTimer);
+    return window.__slideWords.slice();
+  });
+  await page.keyboard.press('Escape');
+  check(
+    'Menyapu kursor antar kata tetap memperbarui sorotan/popup selama bergerak',
+    slideWords.length >= 2,
+    slideWords.join(' → '),
+  );
+  // Kembalikan posisi gulir: pemeriksaan berikutnya memakai koordinat elemen di bagian atas
+  // halaman, dan `boundingBox()` di luar viewport akan memindai elemen yang salah.
+  await page.evaluate((position) => window.scrollTo(0, position), scrollBeforeSlide);
+  await page.waitForTimeout(150);
+
   await page.screenshot({ path: path.join(artifactsDir, 'hover-selected.png') });
   await page.keyboard.press('Escape');
   await page.waitForTimeout(150);
@@ -1024,29 +1106,38 @@ async function main() {
 
   // Hover di tengah rangkaian kanji tanpa spasi: kandidat harus mencakup kursor.
   const sentence = page.locator('#word3');
-  const sentenceBox = await sentence.boundingBox();
+  // Rentetan kanji 毎日日本語: pemindaian dimulai dari karakter di bawah kursor, jadi
+  // kursor diletakkan di karakter pertama kata yang dicari.
+  const sentenceFirst = await characterPoint(page, 'word3', 0);
   await page.keyboard.down('Alt');
-  // Rentetan kanji 毎日日本語 berurutan: kandidat mencakup posisi kursor harus dipilih.
-  await page.mouse.move(sentenceBox.x + sentenceBox.width / 2, sentenceBox.y + sentenceBox.height / 2);
-  await page.mouse.move(sentenceBox.x + sentenceBox.width / 2 + 1, sentenceBox.y + sentenceBox.height / 2);
-  await page.waitForFunction(
-    () => document.querySelector('[data-shirabe="popup"]')?.hasAttribute('hidden') === false,
-    null,
-    { timeout: 10000 },
-  );
+  await page.mouse.move(sentenceFirst.x - 6, sentenceFirst.y);
+  await page.mouse.move(sentenceFirst.x, sentenceFirst.y);
   const sentencePopupText = await waitForPopupText(page, 'bahasa Jepang');
   check(
-    'Hover di tengah kalimat tanpa spasi menemukan kata di bawah kursor',
+    'Hover di karakter pertama kata tanpa spasi menemukan kata itu',
     sentencePopupText.includes('日本語') && sentencePopupText.includes('bahasa Jepang'),
     sentencePopupText.replaceAll('\n', ' | ').slice(0, 200),
   );
   await page.keyboard.press('Escape');
+  await page.waitForTimeout(120);
+
+  // Aturan baru: kursor di tengah kata tidak memindai karakter sebelum kursor.
+  const sentenceMiddle = await characterPoint(page, 'word3', 1);
+  await page.mouse.move(sentenceMiddle.x - 6, sentenceMiddle.y);
+  await page.mouse.move(sentenceMiddle.x, sentenceMiddle.y);
+  const middleText = await waitForPopupText(page, '本語');
+  check(
+    'Kursor di tengah kata memindai dari karakter itu, bukan dari awal kata',
+    middleText.includes('本語') && !middleText.includes('日本語'),
+    middleText.replaceAll('\n', ' | ').slice(0, 160),
+  );
+  await page.keyboard.press('Escape');
   await page.keyboard.up('Alt');
   // Text terbelah ke beberapa text node inline (formatting HTML) tetap dibaca sebagai kata.
-  const splitBox = await page.locator('#split-b').boundingBox();
+  const splitPoint = await characterPoint(page, 'split-a', 0);
   await page.keyboard.down('Alt');
-  await page.mouse.move(splitBox.x + 2, splitBox.y + splitBox.height / 2);
-  await page.mouse.move(splitBox.x + splitBox.width / 2, splitBox.y + splitBox.height / 2);
+  await page.mouse.move(splitPoint.x - 6, splitPoint.y);
+  await page.mouse.move(splitPoint.x, splitPoint.y);
   const splitContent = await waitForPopupText(page, 'makan');
   check(
     'Kata yang terbelah ke beberapa text node inline tetap dipindai',
@@ -1064,8 +1155,9 @@ async function main() {
   });
   const shadowBox = await page.locator('#shadow-host').boundingBox();
   await page.keyboard.down('Alt');
-  await page.mouse.move(shadowBox.x + shadowBox.width / 2, shadowBox.y + shadowBox.height / 2);
-  await page.mouse.move(shadowBox.x + shadowBox.width / 2 + 1, shadowBox.y + shadowBox.height / 2);
+  // Karakter pertama 学生 di dalam shadow root (tengah elemen host ada di antara dua kanji).
+  await page.mouse.move(shadowBox.x + 4, shadowBox.y + shadowBox.height / 2);
+  await page.mouse.move(shadowBox.x + 6, shadowBox.y + shadowBox.height / 2);
   const shadowContent = await waitForPopupText(page, 'pelajar; mahasiswa');
   check(
     'Teks dalam open Shadow DOM dapat dipindai',
@@ -1078,10 +1170,12 @@ async function main() {
   // Penempatan popup: konsisten terhadap posisi kursor (aturan Yomitan), bukan terhadap
   // rentang kandidat yang bisa memanjang/memendek.
   await page.keyboard.down('Alt');
+  // Dua kata berbeda pada baris berbeda: pemindaian mulai dari karakter di bawah kursor,
+  // jadi karakter kedua `学生` (生) tidak punya entri sendiri di kamus uji.
   const placeFirst = await popupPlacementAt(page, '#word', 0);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(120);
-  const placeSecond = await popupPlacementAt(page, '#word', 1);
+  const placeSecond = await popupPlacementAt(page, '#word3', 0);
   await page.keyboard.press('Escape');
   await page.waitForTimeout(120);
   const placeRepeat = await popupPlacementAt(page, '#word', 0);
@@ -1109,10 +1203,16 @@ async function main() {
   );
   check(
     'Popup mengikuti kursor, bukan terpaku pada satu kata',
-    placeSecond.left > placeFirst.left &&
-      Math.abs(placeSecond.left - placeFirst.left - (placeSecond.caret.left - placeFirst.caret.left)) <=
-        1,
-    JSON.stringify({ first: placeFirst.left, second: placeSecond.left }),
+    placeSecond.caret !== null &&
+      placeFirst.caret !== null &&
+      placeSecond.left !== placeFirst.left &&
+      Math.abs(
+        placeSecond.left - placeFirst.left - (placeSecond.caret.left - placeFirst.caret.left),
+      ) <= 1,
+    JSON.stringify({
+      first: [placeFirst.left, placeFirst.caret?.left],
+      second: [placeSecond.left, placeSecond.caret?.left],
+    }),
   );
 
   // Di dasar halaman tidak ada ruang di bawah: popup pindah ke ATAS kursor dan tetap utuh.
@@ -1139,10 +1239,11 @@ async function main() {
   await page.waitForTimeout(200);
   const packedPoint = await page.evaluate(() => {
     const node = document.getElementById('packed').firstChild;
+    // Mulai dari karakter pertama kata: pemindaian tidak lagi mundur melewati kursor.
     const index = node.nodeValue.indexOf('だった');
     const range = document.createRange();
-    range.setStart(node, index + 1);
-    range.setEnd(node, index + 2);
+    range.setStart(node, index);
+    range.setEnd(node, index + 1);
     const rect = range.getBoundingClientRect();
     return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
   });
@@ -1152,7 +1253,7 @@ async function main() {
   const packedText = await waitForPopupText(page, 'bentuk lampau');
   const packedCard = await piercedText(page, { className: 'entry__spelling' });
   check(
-    'Kata di tengah kalimat tanpa spasi tetap ditemukan (だった)',
+    'Kata di dalam kalimat tanpa spasi tetap ditemukan dari karakter pertamanya (だった)',
     packedText.includes('bentuk lampau') && packedCard.includes('だった'),
     `${packedCard} :: ${packedText.replaceAll('\n', ' | ').slice(0, 120)}`,
   );
@@ -1174,7 +1275,9 @@ async function main() {
   const ganaText = await waitForPopupText(page, 'partikel akhir kalimat');
   check(
     'Kata pendek di rentetan kana panjang tetap dilaporkan (がな)',
-    ganaText.includes('partikel akhir kalimat') && ganaText.includes('なんで'),
+    // `なんで` mulai di dalam teks pindai (bukan di kursor), jadi tidak lagi dilaporkan:
+    // pemindaian hanya dari karakter di bawah kursor.
+    ganaText.includes('partikel akhir kalimat') && !ganaText.includes('なんで'),
     ganaText.replaceAll('\n', ' | ').slice(0, 140),
   );
   await page.keyboard.press('Escape');
@@ -1285,7 +1388,7 @@ async function main() {
   await page.keyboard.down('Alt');
   const missingPoint = await page.evaluate(() => {
     const node = document.getElementById('packed').firstChild;
-    const index = node.nodeValue.indexOf('ベリィショート') + 3;
+    const index = node.nodeValue.indexOf('ベリィショート');
     const range = document.createRange();
     range.setStart(node, index);
     range.setEnd(node, index + 1);
@@ -1307,14 +1410,14 @@ async function main() {
   await page.waitForTimeout(200);
 
   // Kueri tanpa spasi (`彼は学生です。`) cocok dengan entri `学生`: sorotan harus menyempit
-  // ke `学生`, bukan seluruh rangkaian huruf.
+  // ke `学生`, bukan seluruh rangkaian huruf. Kursor diletakkan di karakter pertama `学`
+  // karena pemindaian dimulai dari karakter di bawah kursor.
   await page.locator('#no-space').scrollIntoViewIfNeeded();
   await page.waitForTimeout(200);
   await page.keyboard.down('Alt');
-  const noSpace = page.locator('#no-space');
-  const noSpaceBox = await noSpace.boundingBox();
-  await page.mouse.move(noSpaceBox.x + 34, noSpaceBox.y + noSpaceBox.height / 2);
-  await page.mouse.move(noSpaceBox.x + 36, noSpaceBox.y + noSpaceBox.height / 2);
+  const noSpacePoint = await characterPoint(page, 'no-space', 2);
+  await page.mouse.move(noSpacePoint.x - 6, noSpacePoint.y);
+  await page.mouse.move(noSpacePoint.x, noSpacePoint.y);
   await waitForPopupText(page, 'pelajar; mahasiswa');
   const narrowed = await highlightState();
   check(

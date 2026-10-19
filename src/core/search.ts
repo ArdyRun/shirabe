@@ -106,7 +106,7 @@ function posCompatible(entry: DictionaryEntry, expected: string[]): boolean {
   return posVerified(entry, expected) || posTags(entry).length === 0;
 }
 
-/** Urutkan + deduplikasi hasil sesuai prioritas kamus dan panjang kecocokan. */
+/** Urutkan + deduplikasi hasil: panjang kecocokan lebih dahulu, lalu prioritas kamus. */
 export function rankMatches(matches: LookupMatch[], maxResults: number): {
   matches: LookupMatch[];
   truncated: boolean;
@@ -119,14 +119,20 @@ export function rankMatches(matches: LookupMatch[], maxResults: number): {
       deduped.set(key, match);
     }
   }
-  // Urutan (PRD 4.2): prioritas kamus aktif → panjang kecocokan → jenis kecocokan →
-  // POS terverifikasi → prioritas entry → id. Panjang didahulukan atas jenis kecocokan
-  // karena seluruh jendela kandidat kini dikumpulkan: bentuk infleksi yang lebih panjang
-  // (`食べました` → `食べる`) harus tetap mengalahkan kecocokan exact satu karakter (`食`).
+  // Urutan: panjang kecocokan → prioritas kamus aktif → jenis kecocokan → POS
+  // terverifikasi → prioritas entry → id.
+  //
+  // Panjang didahulukan atas prioritas kamus karena kecocokan adalah alasan hasil itu ada:
+  // teks `呼んだ` harus menampilkan `呼ぶ` (cocok 3 code point) lebih dahulu daripada entri
+  // nama keluarga `呼` dari kamus yang kebetulan ditempatkan lebih awal (cocok 1 code point).
+  // Panjang juga mendahului jenis kecocokan supaya bentuk infleksi yang lebih panjang
+  // (`食べました` → `食べる`) mengalahkan kecocokan exact satu karakter (`食`). Prioritas
+  // kamus tetap menentukan urutan untuk kecocokan sepanjang sama (mis. homonim 橋/箸) dan
+  // menjadi tie-break berikutnya.
   const sorted = [...deduped.values()].sort(
     (a, b) =>
-      a.entry.dictionaryOrder - b.entry.dictionaryOrder ||
       b.matchLength - a.matchLength ||
+      a.entry.dictionaryOrder - b.entry.dictionaryOrder ||
       MATCH_TYPE_RANK[a.matchType] - MATCH_TYPE_RANK[b.matchType] ||
       Number(b.partOfSpeechVerified) - Number(a.partOfSpeechVerified) ||
       priorityOf(b.entry) - priorityOf(a.entry) ||
@@ -483,7 +489,28 @@ export async function lookup(
   }
 
   if (collected.length > 0) {
-    const ranked = rankMatches(collected, maxResults);
+    // Buang fragmen deinflection: jendela pendek yang merupakan *akhiran* dari jendela yang
+    // lebih panjang yang juga cocok. Contoh nyata: `呼んだ` dengan kursor di `ん` juga menguji
+    // jendela `んだ`, yang terurai menjadi む/ぬ/ん dan mencocokkan entri bacaan satu kanji
+    // (無, 不, 六, …) — belasan hasil palsu yang menutupi kata sebenarnya. Jendela terpanjang
+    // untuk posisi akhir yang sama sudah menjelaskan teks itu, jadi fragmennya tidak perlu
+    // ditampilkan. Kecocokan exact/reading tetap ditampilkan: itu bukti apa yang tertulis,
+    // bukan hasil inferensi.
+    const longestAtEnd = new Map<number, number>();
+    for (const window of windowOf.values()) {
+      const current = longestAtEnd.get(window.end);
+      if (current === undefined || window.start < current) {
+        longestAtEnd.set(window.end, window.start);
+      }
+    }
+    const fragments = collected.filter((match) => {
+      const window = windowOf.get(match);
+      if (window === undefined || match.matchType !== 'deinflected') {
+        return true;
+      }
+      return longestAtEnd.get(window.end) === window.start;
+    });
+    const ranked = rankMatches(fragments.length > 0 ? fragments : collected, maxResults);
     const best = windowOf.get(ranked.matches[0] as LookupMatch) ?? windows[0];
     return {
       query: normalized,

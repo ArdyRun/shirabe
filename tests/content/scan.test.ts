@@ -15,23 +15,33 @@ import {
 import { codePointLength } from '../../src/core/text.js';
 
 describe('candidateFromText', () => {
-  it('mengambil rangkaian kanji saat kursor berada di tengah kata', () => {
+  it('memindai mulai dari karakter di bawah kursor, bukan sebelumnya', () => {
+    // Kursor di 生: kandidat dimulai dari 生, bukan 学生 (aturan Hachidori/Yomitan untuk
+    // bahasa tanpa spasi).
     const candidate = candidateFromText('私は学生です。', 3);
-    expect(candidate?.query).toBe('学生です');
-    expect(candidate?.start).toBe(2);
-    expect(candidate?.caretOffset).toBe(1);
+    expect(candidate?.query).toBe('生です');
+    expect(candidate?.start).toBe(3);
+    expect(candidate?.caretOffset).toBe(0);
   });
 
-  it('menyertakan rangkaian kanji sebelum kana untuk bentuk infleksi', () => {
+  it('tidak menyertakan kanji sebelum kursor (mode scan dari kursor)', () => {
+    // Kursor di べ pada 食べたい: kandidat べたいです, bukan 食べたいです.
     const candidate = candidateFromText('きょうは食べたいです。', 5);
-    expect(candidate?.query).toBe('食べたいです');
-    expect(candidate?.caretOffset).toBe(1);
+    expect(candidate?.query).toBe('べたいです');
+    expect(candidate?.caretOffset).toBe(0);
   });
 
-  it('membatasi lookback maksimum pada rangkaian kana panjang', () => {
+  it('kursor di kanji tetap mencakup okurigana sesudahnya', () => {
+    const candidate = candidateFromText('食べる', 0);
+    expect(candidate?.query).toBe('食べる');
+    expect(candidate?.caretOffset).toBe(0);
+  });
+
+  it('kandidat pada rangkaian kana panjang mulai tepat di kursor', () => {
     const long = 'あ'.repeat(30);
     const candidate = candidateFromText(long, 29);
-    expect(codePointLength(candidate?.query ?? '')).toBe(17);
+    expect(candidate?.query).toBe('あ');
+    expect(candidate?.start).toBe(29);
   });
 
   it('membatasi panjang kandidat 32 code point', () => {
@@ -44,10 +54,10 @@ describe('candidateFromText', () => {
     // Rangkaian kanji yang berurutan dianggap satu kandidat (batas kata tidak dapat
     // ditentukan tanpa parser); search core memakai caretOffset untuk memilih kata
     // yang benar-benar berada di bawah kursor.
-    const candidate = candidateFromText('私は毎日日本語を勉強します。', 6);
-    expect(candidate?.query).toBe('毎日日本語を勉強します');
-    expect(candidate?.caretOffset).toBe(4);
-    expect(candidate?.start).toBe(2);
+    const candidate = candidateFromText('私は毎日日本語を勉強します。', 8);
+    expect(candidate?.query).toBe('勉強します');
+    expect(candidate?.caretOffset).toBe(0);
+    expect(candidate?.start).toBe(8);
   });
 
   it('mengembalikan null bila posisi bukan bagian dari kata', () => {
@@ -58,13 +68,14 @@ describe('candidateFromText', () => {
   it('tidak memotong surrogate pair', () => {
     const text = '\u{20000}\u{20000}';
     const candidate = candidateFromText(text, 1);
-    expect(candidate?.query).toBe(text);
-    expect(candidate?.caretOffset).toBe(1);
+    expect(candidate?.query).toBe('\u{20000}');
+    expect(candidate?.caretOffset).toBe(0);
   });
 
   it('mengambil kata latin untuk dataset yang memuatnya', () => {
-    const candidate = candidateFromText('Tokyo tower', 2);
-    expect(candidate?.query).toBe('Tokyo');
+    expect(candidateFromText('Tokyo tower', 0)?.query).toBe('Tokyo');
+    // Kursor di tengah kata: kandidat mulai dari karakter itu (aturan yang sama).
+    expect(candidateFromText('Tokyo tower', 2)?.query).toBe('kyo');
   });
 });
 
@@ -72,25 +83,22 @@ describe('candidateFromText', () => {
 describe('segmen tampilan kandidat', () => {
   it('memakai rentetan kelas kursor, bukan seluruh kalimat tanpa spasi', () => {
     const sentence = '陸上部だったので髪型はベリィショート';
+    // Kursor di っ (karakter kedua): kandidat mulai dari っ, dan segmen tampilan adalah
+    // rentetan hiragana dari kursor — bukan rangkaian tanpa spasi sampai akhir kalimat.
     const candidate = candidateFromText(sentence, sentence.indexOf('だった') + 1);
-    expect(candidate?.query).toContain('だった');
-    expect(candidate?.segment).toBe('だったので');
+    expect(candidate?.query.startsWith('ったので')).toBe(true);
+    expect(candidate?.segment).toBe('ったので');
   });
 
-  it('menyertakan kanji dasar kata sebelum kana (okurigana)', () => {
-    const candidate = candidateFromText('食べる', 1);
-    expect(candidate?.segment).toBe('食べる');
-  });
-
-  it('memakai rentetan kanji saat kursor di dalam kata kanji', () => {
+  it('segmen dimulai dari karakter di bawah kursor', () => {
     const candidate = candidateFromText('私は学生です', 3);
-    expect(candidate?.segment).toBe('学生');
+    expect(candidate?.segment).toBe('生');
   });
 
   it('memisahkan hiragana dan katakana sebagai kata berbeda', () => {
     const sentence = '髪型はベリィショート';
     const candidate = candidateFromText(sentence, sentence.indexOf('ベ') + 2);
-    expect(candidate?.segment).toBe('ベリィショート');
+    expect(candidate?.segment).toBe('ィショート');
   });
 
   it('membatasi panjang segmen tampilan', () => {
@@ -99,6 +107,7 @@ describe('segmen tampilan kandidat', () => {
     expect(codePointLength(candidate?.segment ?? '')).toBeLessThanOrEqual(12);
   });
 });
+
 
 describe('isNodeWithinElement', () => {
   it('menembus batas shadow DOM', () => {
@@ -132,15 +141,16 @@ describe('isNodeWithinElement', () => {
 
 
 describe('candidateFromText pada batas elemen', () => {
-  it('menggabungkan kandidat dari text node terpisah melalui text window', () => {
-    // Simulasi 食べ + ました pada dua span: window menyatukan keduanya sebelum kandidat dicari.
+  it('menggabungkan text node terpisah melalui text window, mulai dari kursor', () => {
+    // Simulasi 食べ + ました pada dua span: window menyatukan keduanya, dan karena kursor
+    // berada di べ, kandidat dimulai dari べ (tidak mundur ke 食).
     const left = '今日は';
     const right = '食べました';
     const joined = `${left}${right}`;
     const caretOffset = codePointLength(left) + 1;
     const candidate = candidateFromText(joined, caretOffset);
-    expect(candidate?.query).toBe('食べました');
-    expect(candidate?.caretOffset).toBe(1);
+    expect(candidate?.query).toBe('べました');
+    expect(candidate?.caretOffset).toBe(0);
   });
 });
 

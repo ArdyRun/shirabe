@@ -46,9 +46,21 @@ import { errorMessage, setLanguage } from '../ui/strings.js';
 import { SourceHighlight } from './highlight.js';
 import { ContentPopup, type PopupAnchor } from './popup.js';
 import { candidateFromText, elementFromNode, isEligibleElement } from './scan.js';
+import { createThrottle } from './throttle.js';
 
-/** Jeda sebelum pointer dianggap berhenti (mengurangi jumlah lookup saat menggerakkan kursor). */
-const HOVER_DEBOUNCE_MS = 90;
+/**
+ * Jarak minimum antar pemindaian saat modifier ditahan (ms).
+ *
+ * Ini **throttle**, bukan debounce: timer tidak di-restart setiap `pointermove`, sehingga
+ * popup tetap mengikuti kursor waktu pengguna menyapu beberapa kata berturut-turut. Dengan
+ * debounce, setiap gerakan membatalkan pemindaian dan popup baru muncul setelah kursor
+ * berhenti — perbedaan yang terasa jelas dibanding Hachidori, yang memakai pola throttle
+ * yang sama (`content.js`: "at most one scan per hoverDelayMs, always at the pointer's
+ * latest position"). Nilainya tidak 0 karena satu pemindaian dapat memicu lookup ke service
+ * worker + render ulang popup; 40 ms membatasi laju ±25 scan/detik, sementara lookup untuk
+ * kata yang sama tetap dilewati oleh deduplikasi node + offset.
+ */
+const SCAN_THROTTLE_MS = 40;
 /** Tampilkan status memuat hanya bila lookup terasa lambat. */
 const LOADING_DELAY_MS = 150;
 
@@ -80,7 +92,9 @@ class ContentScanner {
   #preferences: Preferences = { ...DEFAULT_PREFERENCES };
   #running = false;
   #lastPointer: { x: number; y: number } | null = null;
-  #hoverTimer: number | null = null;
+  #hoverThrottle = createThrottle(SCAN_THROTTLE_MS, () => {
+    this.#scanAtPointer();
+  });
   #hideTimer: number | null = null;
   #loadingTimer: number | null = null;
   #pointerInPopup = false;
@@ -298,13 +312,11 @@ class ContentScanner {
     }
     // Pemindaian aktif: popup tidak boleh menghalangi hit-test teks di bawahnya.
     this.#popup.setPointerInteractive(false);
-    const point = pointedTextAt(event.clientX, event.clientY);
-    if (point === null || !isEligibleElement(elementFromNode(point.node))) {
-      this.#scheduleHide();
-      return;
-    }
     this.#cancelHide();
-    this.#scheduleHover(point);
+    // Hit-test (elementFromPoint + caretPositionFromPoint) sengaja TIDAK dilakukan di sini:
+    // satu pemindaian per `SCAN_THROTTLE_MS` cukup, dan itu memindahkan biaya layout dari
+    // setiap event pointer ke sekali per jeda.
+    this.#scheduleHover();
   };
 
   /** Klik dengan modifier juga memicu scan segera (pola Yomitan pointerdown). */
@@ -392,25 +404,32 @@ class ContentScanner {
     this.#popup.reposition(anchor);
   };
 
-  #scheduleHover(point: PointedText): void {
+  /** Jadwalkan pemindaian pada posisi pointer terbaru (lihat `createThrottle`). */
+  #scheduleHover(): void {
+    this.#hoverThrottle.schedule();
+  }
+
+  /** Hit-test di posisi pointer terakhir, lalu scan bila titiknya kata yang layak. */
+  #scanAtPointer(): void {
+    const pointer = this.#lastPointer;
+    if (pointer === null) {
+      return;
+    }
+    const point = pointedTextAt(pointer.x, pointer.y);
+    if (point === null || !isEligibleElement(elementFromNode(point.node))) {
+      this.#scheduleHide();
+      return;
+    }
     if (this.#lastHoverNode === point.node && this.#lastHoverOffset === point.codePointOffset) {
       return;
     }
-    this.#cancelHover();
-    const { node, codePointOffset } = point;
-    this.#hoverTimer = window.setTimeout(() => {
-      this.#hoverTimer = null;
-      this.#lastHoverNode = node;
-      this.#lastHoverOffset = codePointOffset;
-      this.#handleHoverPoint(node, codePointOffset);
-    }, HOVER_DEBOUNCE_MS);
+    this.#lastHoverNode = point.node;
+    this.#lastHoverOffset = point.codePointOffset;
+    this.#handleHoverPoint(point.node, point.codePointOffset);
   }
 
   #cancelHover(): void {
-    if (this.#hoverTimer !== null) {
-      window.clearTimeout(this.#hoverTimer);
-      this.#hoverTimer = null;
-    }
+    this.#hoverThrottle.cancel();
   }
 
   #scheduleHide(): void {
@@ -823,17 +842,59 @@ function caretTextAt(clientX: number, clientY: number, hit: Element): PointedTex
       shadowRoots: openShadowRootsAtPoint(hit, clientX, clientY),
     });
     if (position !== null && position.offsetNode.nodeType === Node.TEXT_NODE) {
-      const node = position.offsetNode as Text;
-      return { node, codePointOffset: codePointLength(node.data.slice(0, position.offset)) };
+      return pointedTextAtOffset(position.offsetNode as Text, position.offset, clientX, clientY);
     }
     return null;
   }
   const range = withCaret.caretRangeFromPoint?.(clientX, clientY) ?? null;
   if (range !== null && range.startContainer.nodeType === Node.TEXT_NODE) {
-    const node = range.startContainer as Text;
-    return { node, codePointOffset: codePointLength(node.data.slice(0, range.startOffset)) };
+    return pointedTextAtOffset(range.startContainer as Text, range.startOffset, clientX, clientY);
   }
   return null;
+}
+
+/**
+ * Titik teks dari caret API, digeser ke karakter yang benar-benar ada di bawah pointer.
+ *
+ * `caretPositionFromPoint` mengembalikan **posisi sisipan**: menunjuk separuh kanan sebuah
+ * karakter memberi offset setelah karakter itu, sehingga pemindaian akan mulai dari
+ * karakter berikutnya. Bila pointer berada di dalam kotak karakter sebelum caret, offset
+ * digeser mundur satu karakter — pola yang sama dengan `alignToCharacter` Hachidori
+ * (`extension/content.js`), dan itu yang membuat "scan mulai dari kursor" tidak bergantung
+ * pada separuh glyph mana yang kena.
+ */
+function pointedTextAtOffset(
+  node: Text,
+  offset: number,
+  clientX: number,
+  clientY: number,
+): PointedText {
+  const aligned = alignCaretToPoint(node, offset, clientX, clientY);
+  return { node, codePointOffset: codePointLength(node.data.slice(0, aligned)) };
+}
+
+function alignCaretToPoint(node: Text, offset: number, clientX: number, clientY: number): number {
+  if (offset === 0) {
+    return offset;
+  }
+  const probe = document.createRange();
+  try {
+    probe.setStart(node, offset - 1);
+    probe.setEnd(node, offset);
+  } catch {
+    return offset;
+  }
+  for (const rect of probe.getClientRects()) {
+    if (
+      clientX >= rect.left &&
+      clientX <= rect.right &&
+      clientY >= rect.top &&
+      clientY <= rect.bottom
+    ) {
+      return offset - 1;
+    }
+  }
+  return offset;
 }
 
 /** Bandingkan dua anchor dengan toleransi sub-piksel. */
