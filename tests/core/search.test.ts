@@ -39,6 +39,31 @@ describe('lookup: corpus morfologi MVP (PRD 4.4)', () => {
   });
 });
 
+describe('lookup: bentuk kanji kuru (来る)', () => {
+  // Bentuk kana (`きます`) tidak cocok dengan `来ます`; tanpa aturan kanji khusus,
+  // deinflection v1 menghasilkan `来る` bertag `v1` yang ditolak validasi POS `vk`.
+  it.each([
+    ['来ます', 'ます'],
+    ['来ました', 'ました'],
+    ['来ません', 'ません'],
+    ['来ませんでした', 'ませんでした'],
+    ['来ない', 'ない'],
+    ['来なかった', 'なかった'],
+    ['来なくて', 'なくて'],
+    ['来ず', 'ず'],
+    ['来れば', 'れば'],
+    ['来よう', 'よう'],
+    ['来た', 'た'],
+    ['来て', 'て'],
+    ['来い', 'ろ'],
+  ])('%s → 来る (%s)', async (query) => {
+    const result = await lookup(query, corpus);
+    expect(result.status).toBe('ok');
+    expect(result.matches[0]?.entry.expression).toBe('来る');
+    expect(result.matches[0]?.matchType).toBe('deinflected');
+  });
+});
+
 describe('lookup: pitch accent, frekuensi, dan kanji (bank meta/kanji)', () => {
   const withAux = createMemorySource(
     [{ expression: '食べる', reading: 'たべる', definitions: ['makan'], partOfSpeech: ['v1'] }],

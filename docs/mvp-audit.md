@@ -4,26 +4,31 @@ Dokumen ini mencatat status implementasi terhadap acceptance criteria `PRD.md`,
 bukti pengujian yang benar-benar dijalankan, asumsi yang diambil untuk keputusan
 terbuka, serta kekurangan yang masih tersisa.
 
-Tanggal audit: 16 Oktober 2026. Basis: commit kerja pada repositori ini, Chromium
-156.0.8078.4 (Playwright channel `chromium`), Node 26.10.0.
+Tanggal audit: 20 Oktober 2026 (pembaruan terakhir; audit awal 16 Oktober 2026). Basis:
+commit kerja pada repositori ini, Chromium 156.0.8078.4 (Playwright channel `chromium`),
+Node 26.10.0.
+
+Angka regresi pada §4.11–§4.32 adalah jumlah pada saat perubahan itu dikerjakan, bukan
+total terkini. Total terkini ada di §1 dan §4; setiap klaim status harus dapat dilacak ke
+perintah yang benar-benar dijalankan pada bagian tersebut.
 
 ## 1. Ringkasan status
 
 | Area | Status | Bukti |
 |---|---|---|
 | Fondasi extension MV3, build, validasi manifest | LULUS | `npm run build` (build + `scripts/validate-build.mjs`) |
-| Data model, import staging/rollback, pengelolaan kamus | LULUS | 13 test `tests/data/import.test.ts`, 5 pemeriksaan e2e |
-| Search core: NFC, exact, reading, ranking, kandidat, deinflection | LULUS | 26 test `tests/core/search.test.ts`, 12 `tests/core/deinflect.test.ts` |
-| Integrasi halaman: hover+modifier, teks terpilih, popup, keyboard | LULUS | 81 pemeriksaan `npm run e2e` (Chromium asli) |
+| Data model, import staging/rollback, pengelolaan kamus | LULUS | 14 test `tests/data/import.test.ts` + e2e pengaturan |
+| Search core: NFC, exact, reading, ranking, kandidat, deinflection, bentuk kanji kuru | LULUS | test core/search + core/deinflect; korpus kuru mencakup 来ます/来ました/来ない/来なかった |
+| Integrasi halaman: hover+modifier, teks terpilih, popup, keyboard | LULUS | 128 pemeriksaan `npm run e2e` (Chromium asli) |
 | UI: action popup, kartu entri kamus, halaman pencarian, pengaturan | LULUS | e2e + tangkapan layar di `artifacts/e2e/` |
 | Status kosong, error, izin, storage | LULUS (kuota belum diuji) | e2e + test pesan/protokol |
-| **P1: impor ZIP Yomitan langsung** (PRD 4.7) | LULUS | 52 pemeriksaan e2e + 24 test adapter/ZIP |
+| **P1: impor ZIP Yomitan langsung** (PRD 4.7) | LULUS | e2e ZIP/kanji/meta/media + test adapter/ZIP |
 | NFR performa | LULUS pada perangkat uji | `artifacts/benchmark/report.json` |
 | Aksesibilitas lanjutan dan browser selain Chromium | BELUM DIUJI | lihat §6 |
 
-Jumlah pengujian otomatis: **260 test Vitest** (`npm test`), **104 pemeriksaan
+Jumlah pengujian otomatis: **342 test Vitest** (`npm test`), **128 pemeriksaan
 integration** di Chromium asli (`npm run e2e`), dan **3 pemeriksaan konteks basi**
-(`npm run verify:stale`), semuanya lulus pada kondisi terakhir diperiksa.
+(`npm run verify:stale`), semuanya lulus pada kondisi terakhir diperiksa (20 Oktober 2026).
 
 ## 2. Acceptance criteria P0
 
@@ -33,9 +38,10 @@ integration** di Chromium asli (`npm run e2e`), dan **3 pemeriksaan konteks basi
 |---|---|---|
 | Extension Chrome desktop Manifest V3 | LULUS | `dist/manifest.json` tervalidasi; service worker `type: module` |
 | Pencarian kontekstual (modifier + hover) dan teks terpilih | LULUS | e2e: hover dengan/tanpa modifier, `GET_SELECTION`, `SHOW_LOOKUP` |
-| Popup: bentuk kamus, bacaan, definisi, kelas kata/tag, konteks kalimat | LULUS | e2e membaca isi shadow DOM via CDP `DOM.getDocument{depth:-1,pierce:true}` |
+| Popup: bentuk kamus, bacaan, definisi, kelas kata/tag | LULUS | e2e membaca isi shadow DOM via CDP `DOM.getDocument{depth:-1,pierce:true}` |
+| Popup: konteks kalimat | **DIHAPUS** | Deviasi atas permintaan pemilik produk; blok konteks dan cuplikan 160 code point dihapus (§4.14). Bukan lagi bagian acceptance yang dipenuhi |
 | Pencarian manual dari action popup dan halaman pencarian | LULUS | e2e: action popup (status, Enter, seluruh definisi tampil) + halaman pencarian |
-| Deinflection bentuk umum verba/adjektiva + label bentuk | LULUS | corpus 4.4 di `tests/core/search.test.ts`; label tampil di UI |
+| Deinflection bentuk umum verba/adjektiva + label bentuk | LULUS | corpus 4.4 di `tests/core/search.test.ts`; bentuk kanji kuru (来ます/来ました/来ない/来なかった) kini lulus test lookup; label tampil di UI |
 | Impor/aktivasi/pengurutan/penghapusan kamus JSONL | LULUS | `tests/data/import.test.ts`, e2e pengaturan |
 | Kamus + preferensi di storage lokal; pencarian offline | LULUS | e2e `context.setOffline(true)` menampilkan hasil |
 | Pengaturan: bahasa, modifier, tema, ukuran popup, daftar situs | LULUS | `src/settings/`; e2e perubahan tema + persistensi |
@@ -51,7 +57,7 @@ integration** di Chromium asli (`npm run e2e`), dan **3 pemeriksaan konteks basi
 | Tidak ada lookup di input/area editable atau tanpa modifier | LULUS | e2e hover di `<input>`; test `isEligibleElement` |
 | Lookup berjalan offline dan tidak membuat request jaringan | LULUS | e2e dengan `context.setOffline(true)` menampilkan hasil; `scripts/validate-build.mjs` menolak `fetch`/`XMLHttpRequest`/`WebSocket`/`sendBeacon`/`EventSource` pada bundle |
 | Cakupan frame pemindaian | LULUS (diperluas) | Content script statis berjalan di iframe http/https (`all_frames: true`) seperti Yomitan/Hachidori; pengecualian situs diperiksa terhadap origin frame, dan seleksi pengguna tetap dibaca dari frame utama (`frameId: 0`) |
-| Cuplikan konteks ≤160 code point, tidak dikirim/di-simpan | LULUS | 3 test `buildContextSnippet`; payload `LOOKUP` hanya query + `caretOffset` |
+| Cuplikan konteks ≤160 code point | **DIHAPUS** | Modul/tes cuplikan dihapus (§4.14). Payload `LOOKUP` tetap hanya query + `caretOffset`, jadi tidak ada teks halaman yang dikirim |
 
 ### 4.2 Pencarian manual
 
@@ -59,7 +65,7 @@ integration** di Chromium asli (`npm run e2e`), dan **3 pemeriksaan konteks basi
 |---|---|---|
 | Enter dan tombol Cari menjalankan kueri yang sama | LULUS | e2e "Enter menjalankan pencarian manual yang sama dengan tombol Cari"; form submit pada `action.html` dan `search.html` |
 | Kueri kosong tidak diproses; tanpa hasil menampilkan saran kamus aktif | LULUS | `status: empty-query`; e2e "Kamus nonaktif tidak dipakai untuk lookup" menampilkan saran |
-| Mengganti kueri tidak menampilkan hasil lama | LULUS | `ResultsView.clear()` + token permintaan; `#results` dikosongkan saat input berubah |
+| Mengganti kueri tidak menampilkan hasil lama | LULUS | `ResultsPanel.clear()` + token permintaan; token dinaikkan pada `input` dan submit; e2e "Mengganti kueri membuang respons pencarian lama yang masih terbang" |
 | Hasil maksimum 30 entri dengan indikator hasil lain | LULUS | `DEFAULT_MAX_RESULTS = 30`; `truncated` ditampilkan; test "membatasi jumlah hasil" |
 
 ### 4.3 Popup hasil (kartu entri)
@@ -67,6 +73,7 @@ integration** di Chromium asli (`npm run e2e`), dan **3 pemeriksaan konteks basi
 | Kriteria | Status | Bukti |
 |---|---|---|
 | Headword, reading, definisi, kelas kata tanpa tab tambahan | LULUS | e2e isi popup |
+| Memilih hasil membuka detail dan tombol Kembali | **DIUBAH** | Semua definisi tampil langsung di kartu; tidak ada tampilan detail terpisah atau tombol Kembali (keputusan UX §4.8) |
 | Seluruh definisi tampil langsung tanpa klik/Enter | LULUS | e2e "Popup menampilkan definisi langsung di kartu entri tanpa aksi pengguna" + `tests/ui/render.test.ts` (`.definitions__item` bernilai seluruh sense, tidak ada tombol pada kartu) |
 | Tag tidak dikenal tetap ditampilkan tanpa merusak layout | LULUS | chip teks biasa (`tagList()`); fixture `pos-tidak-dikenal` |
 | Markup/script pada data kamus tidak dieksekusi | LULUS | validasi impor menolak HTML; renderer memakai `textContent`; 16 test di `tests/ui/render.test.ts` (termasuk asersi tidak ada elemen `img`/`script` yang dibuat) |
@@ -122,9 +129,10 @@ Asumsi tambahan yang diambil saat implementasi:
   setiap batch.
 - **Halaman extension** yang dibuka di dalam tab bukan content script: klasifikasi
   pengirim memakai skema URL (`chrome-extension://` vs `http(s)://`).
-- **Furigana** disusun dari satu bacaan per entri, jadi kata tanpa jangkar kana (mis.
-  大人/おとな) menampilkan furigana di atas seluruh kata, dan bacaan yang tidak dapat
-  diselaraskan (mis. okurigana tidak cocok) ditampilkan sebagai baris terpisah.
+- **Furigana belum dirender.** Helper `src/ui/furigana.ts` (penyelarasan bacaan ↔ kanji)
+  beserta test-nya ada, tetapi renderer headword saat ini hanya menampilkan bacaan inline
+  di samping kata (`readingLine`), bukan `<ruby>`/furigana. Helper disimpan untuk pekerjaan
+  lanjutan; klaim furigana pada dokumen versi lama tidak berlaku.
 - **Setelah extension dimuat ulang**, tab yang sudah terbuka harus dimuat ulang sekali
   (batasan Chrome untuk content script statis: tidak ada penyuntikan ulang otomatis).
   Penyuntikan ulang otomatis memerlukan permission `scripting`, yang sengaja tidak
@@ -149,47 +157,49 @@ Asumsi tambahan yang diambil saat implementasi:
   (食, 書, 高, 行) akan menampilkan `食` untuk kueri `食べました` alih-alih `食べる`;
   regresi ini tertangkap saat verifikasi JMdict dan dikunci oleh test
   "kamus besar dengan entry satu karakter".
-- **Konversi Yomitan di luar extension.** PRD 8.4 menolak mengklaim kompatibilitas
-  format Yomitan dan PRD 7 melarang membuat parser ZIP sendiri; karena itu adapter
-  term bank v3 dijalankan sebagai skrip terpisah (`scripts/yomitan-to-shirabe.mjs`,
-  memakai `unzip` sistem) dan hasilnya diimpor sebagai JSONL biasa.
+- **Konversi Yomitan di dalam extension.** PRD 8.4 menolak mengklaim kompatibilitas
+  penuh dan PRD 7 menyarankan tidak menulis parser ZIP sendiri; atas permintaan pemilik
+  produk, adapter subset (term/kanji/meta/media) berjalan di extension dengan pembaca ZIP
+  kecil di `src/core/zip.ts` dan `DecompressionStream('deflate-raw')`. Tidak ada skrip
+  konverter CLI terpisah; penyimpangan ini dicatat di §4.3.
 
 ## 4. Hasil build dan pengujian
 
 | Perintah | Hasil |
 |---|---|
-| `npm run build` | Berhasil; `dist/background.js` 24,6 kB, `dist/content.js` 38,8 kB (self-contained IIFE), halaman + CSS. `scripts/validate-build.mjs`: OK (permission sesuai rencana, tanpa host permission awal, content script bukan ESM, tidak ada `eval`) |
-| `npm test` | 12 file, 200 test lulus |
+| `npm run build` | Berhasil; `dist/background.js` 13,0 kB, `dist/content.js` 116,4 kB (34,4 kB gzip, self-contained IIFE), halaman + CSS. `scripts/validate-build.mjs`: OK (permission sesuai rencana, content script bukan ESM, tidak ada `eval`) |
+| `npm test` | 22 file, 342 test lulus |
 | `npm run verify:stale` | 3/3 pemeriksaan lulus: hover normal, penjelasan setelah extension di-reload, pemindaian berhenti tanpa kegagalan berulang |
-| `npm run e2e` | 81/81 pemeriksaan lulus di Chromium 156 headless (extension unpacked, **manifest asli tanpa patch**): impor JSONL & ZIP, lookup, deinflection, action popup, hover+modifier, modifier tanpa gerakan, kata terbelah antar text node, open Shadow DOM, iframe http, penempatan popup (jarak dari kursor, sisi atas saat ruang bawah habis, determinisme, batas viewport), tema gelap default + popup bertema gelap, furigana, tab sumber kamus (dua kamus aktif), kartu entri (seluruh definisi langsung tampil tanpa klik, baris sense digabung jadi satu kartu bernomor), pemindaian semua situs, pengecualian situs, toggle global, offline, teks terpilih, popup menu konteks, restart, nonaktif/hapus kamus, arsip rusak |
+| `npm run e2e` | 128/128 pemeriksaan lulus di Chromium 156 headless (extension unpacked, **manifest asli tanpa patch**): impor JSONL & ZIP, lookup, deinflection, bentuk kanji kuru, action popup (termasuk respons lama yang masih terbang), hover+modifier, modifier tanpa gerakan, kata terbelah antar text node, open Shadow DOM, iframe http, penempatan popup, tema gelap default + popup bertema gelap, bacaan inline, tab sumber kamus, kartu entri, pemindaian semua situs, pengecualian situs, toggle global, offline, teks terpilih, popup menu konteks, restart, nonaktif/hapus kamus, arsip rusak |
 | `npm run bench` | Lihat `artifacts/benchmark/report.json` |
 | `npm run typecheck` | Lulus tanpa error (`strict`, `noUncheckedIndexedAccess`, tanpa `any`) |
 
 ### 4.1 Pengukuran NFR pada perangkat uji
 
 Perangkat: Intel Core i5-11400H (12 thread), 15,7 GB RAM, Linux 7.2.9, Chromium
-156.0.8078.4. Corpus: 100.029 entry (16,9 MB JSONL) + fixture MVP 29 entry.
+156.0.8078.4. Corpus: 100.029 entry (16,9 MB JSONL) + fixture MVP 34 entry. Angka di
+bawah berasal dari `artifacts/benchmark/report.json` yang dijalankan 20 Oktober 2026;
+angka JMdict adalah pengukuran dataset nyata pada bagian §4.2.
 
 | Metrik | Target PRD | Hasil |
 |---|---|---|
-| Lookup p95 (exact, deinflection, kana, banyak hasil) | ≤100 ms | 22–27 ms (JSONL) / 11–14 ms dengan corpus JMdict |
-| Lookup no-hit p95 | — | 4–6 ms |
-| Lookup pertama setelah worker dingin | — | 10–17 ms |
-| Aktivasi hover hingga popup terlihat p95 | ≤300 ms | 100–104 ms (p50 98 ms) |
-| Impor 100.000 entry (JSONL sintetis) | tidak ada jeda UI berkelanjutan | **6,6 s (≈15.100 entry/detik)**, turun dari 17,1 s sebelum optimasi; puncak JS heap halaman 57 MB (dibatasi ukuran batch × batch paralel; setelah impor proses renderer stabil di ≈49 MB termasuk cache IndexedDB) |
+| Lookup p95 (exact, deinflection, kana, banyak hasil) | ≤100 ms | **15–18 ms** (JSONL) / 11–14 ms dengan corpus JMdict |
+| Lookup no-hit p95 | — | 3,7–5,4 ms |
+| Lookup pertama setelah worker dingin | — | 7–34 ms (sampel cold) |
+| Aktivasi hover hingga popup terlihat p95 | ≤300 ms | **62,2 ms** (p50 56,4 ms) |
+| Impor 100.000 entry (JSONL sintetis) | tidak ada jeda UI berkelanjutan | **8,2 s (≈12.200 entry/detik)**, storage ±42 MB; puncak heap halaman ±3,9 MB karena impor berjalan di Web Worker. Heap worker dan service worker belum diukur (batasan alat) |
 | Impor 527.409 entry JMdict | — | **42,8 s langsung dari ZIP 14,9 MB** (12.300 entry/detik, storage 140 MB) dan **43,9 s dari JSONL 87 MB** (12.400 entry/detik); sebelum optimasi jalur JSONL 119 s |
+| Startup popup/action | tanpa memuat seluruh kamus ke memori | halaman settings ±4 MB (fresh) sebelum impor; kamus tidak dimuat penuh (lookup memakai index) |
 
 Optimasi yang dilakukan, berdasarkan profiling (bukan tebakan): profiling menunjukkan
 waktu impor 527k entry terbagi decompress 0,7 s, `JSON.parse` 1,4 s, konversi+validasi
 5,6 s, dan 41 s pada kirim batch + penulisan IndexedDB. Perbaikan yang diterapkan:
-batch besar (≤30.000 entry / 6 MB) dengan pipelining enam batch sekaligus, validasi entry
-di service worker memakai validator yang sama tanpa `JSON.stringify`/`JSON.parse` ulang,
-progres di-throttle 250 ms, `pushMany` (satu `await` per bank, bukan per entry),
-penghapusan index `by_version` yang tidak pernah di-query (migrasi database v1→v2), serta
-estimasi ukuran entry tanpa alokasi array per entry. Sisa bottleneck adalah throughput
-penulisan IndexedDB (±15.000 entry/detik) — lompatan berikutnya memerlukan format
-penyimpanan biner/OPFS seperti Hachidori (di luar scope sekarang).
-| Startup popup/action | tanpa memuat seluruh kamus ke memori | halaman settings 2,95 MB sebelum impor; kamus tidak dimuat penuh (lookup memakai index) |
+batch besar (≤30.000 entry / 6 MB) dengan pipelining enam batch sekaligus, parsing dan
+validasi di Web Worker impor lalu penulisan langsung ke IndexedDB (bukan per entry lewat
+service worker), progres di-throttle 250 ms, `pushMany` (satu `await` per bank, bukan per
+entry), serta penghapusan index `by_version` yang tidak pernah di-query (migrasi database
+v1→v2). Sisa bottleneck adalah throughput penulisan IndexedDB — lompatan berikutnya
+memerlukan format penyimpanan biner/OPFS seperti Hachidori (di luar scope sekarang).
 
 Catatan: latensi lookup diukur dari halaman extension ke service worker dan kembali
 (batas atas waktu di dalam worker). Heap service worker tidak dapat diukur lewat
@@ -198,8 +208,9 @@ Playwright (CDP hanya untuk Page/Frame) — perlu dibaca manual dari Chrome Task
 ### 4.2 Verifikasi dataset nyata (JMdict terkonversi)
 
 Uji tambahan di luar fixture: `JMdict_english.zip` (Yomitan format 3, 53 term bank)
-dikonversi dengan `scripts/yomitan-to-shirabe.mjs` menjadi 527.409 entry (87,3 MB
-JSONL) dan diimpor ke extension pada Chromium asli dengan `scripts/verify-dataset.mjs`.
+menjadi 527.409 entry (87,3 MB JSONL) dan diimpor ke extension pada Chromium asli dengan
+`scripts/verify-dataset.mjs`. Konversi memakai adapter Yomitan di extension (skrip CLI
+terpisah sudah dihapus, §4.3).
 
 | Aspek | Hasil |
 |---|---|
@@ -377,6 +388,10 @@ penjelasan tersebut (bukan kesalahan internal) dan tidak mengulang permintaan.
 
 ### 4.8 Penyajian data kamus di kartu entri (acuan Hachidori/Yomitan)
 
+> **Catatan historis:** tabel di bagian ini merekam iterasi 4.8. Kelas seperti
+> `.entries__group`, `.dict-panel`, dan `.tag--pos` sudah tidak ada; kartu kini memakai
+> `.entry` + tab sumber kamus (`.dict-tabs`, §4.21). Status terkini ada di §4.21–§4.24.
+
 Masukan pemilik produk: definisi lengkap tidak boleh menuntut klik/Enter lebih dahulu.
 Sebelumnya daftar hasil hanya menampilkan satu definisi ringkas per entri dan menyembunyikan
 sisanya di tampilan "detail entri" yang dibuka dengan Enter/klik.
@@ -390,9 +405,9 @@ sisanya di tampilan "detail entri" yang dibuka dengan Enter/klik.
 | Sense bernomor | Daftar `<ol>` per kamus | `<ol>` bernomor bila sense > 1; tanpa nomor bila tunggal |
 | Tag | Chip berjenis warna (kelas kata = aksen, ekspresi = sekunder, frekuensi = info) — `render/reader.css:1097-1119` | Chip `tag--pos` (aksen) dan `tag` (netral); chip tak dikenal tetap teks biasa |
 | Ukuran popup | 560×420 px, radius 14px, dasar 16px/1.5 (`render/reader.css:1096-1127`) | Lebar 560px, radius 14px; tinggi mengikuti isi (bukan 420px tetap) dengan batas `min(72vh, 520px)` |
-| Tipografi | expression 32px/1.22 + furigana 15px (`reader.css:1618-1679`), glosarium 16px/1.5 (`:2447-2450`), judul kartu kamus 13px (`:2411`), tag 12px (`:2249-2255`), tag sense 11px (`:2271`), ringkasan 13px/1.35 (`:1741-1754`) | `--fs-headword` 32px, `--fs-gloss` 16px/1.5, `--fs-label` 13px, `--fs-tiny` 12px, furigana `0.47em` (±15px) — sama dengan Hachidori; nama kamus tidak lagi kapital semua |
+| Tipografi | expression 32px/1.22 + furigana 15px (`reader.css:1618-1679`), glosarium 16px/1.5 (`:2447-2450`), judul kartu kamus 13px (`:2411`), tag 12px (`:2249-2255`), tag sense 11px (`:2271`), ringkasan 13px/1.35 (`:1741-1754`) | `--fs-headword` 32px, `--fs-gloss` 16px/1.5, `--fs-label` 13px, `--fs-tiny` 12px. Ruby hanya dipakai pada structured content (`.sc-rt` 0,5em); headword **tidak** memakai furigana — nama kamus tidak lagi kapital semua |
 | Ukuran tab kamus | `.gsm-hoshidicts-tab` 13px/600, min-height 34px, padding 6px 13px, radius 7px, `max-width: min(150px, 58vw)` + elipsis, `gap: 6px` (`reader.css:1337-1443`) | Sama: 13px/600, min-height 34px, padding 6px 12px, radius 6px, elipsis 150px + atribut `title`, `gap: 6px` |
-| Bentuk infleksi | Disclosure `<details>` jalur deinflection | Tidak ditampilkan: kartu hanya memuat data kamus (lihat §4.10) |
+| Bentuk infleksi | Disclosure `<details>` jalur deinflection | Disclosure `<details>` jalur deinflection (lihat §4.18) |
 | Tema | Token `--hoshidicts-*` (gelap: base `#272630`, primary `#a89ce4`; terang: OKLCH) di `:host([data-hoshidicts-theme])` | Token Shirabe yang sudah ada (`--bg/--fg/--muted/--border/--card/--accent/--accent-soft`) dengan tema terang/gelap/sistem; tidak meniru palet Hachidori |
 
 **Perubahan kode**
@@ -418,6 +433,12 @@ sisanya di tampilan "detail entri" yang dibuka dengan Enter/klik.
 
 ### 4.9 Redesign UI/UX dengan acuan popup Hachidori
 
+> **Catatan historis:** bagian ini merekam redesign pada 17–18 Oktober 2026. Beberapa
+> komponen yang disebut di sini (blok konteks kalimat, panel per kamus, `#renderHeader`,
+> furigana/ruby pada headword, tag chip) sudah dihapus atau diganti pada iterasi
+> berikutnya. Status terkini ada di §4.14, §4.18, dan §4.21; jangan memakai bagian ini
+> sebagai klaim status terkini.
+
 Permintaan pemilik produk: tampilan popup dibuat sematang Hachidori (tema gelap, padat,
 terstruktur) tanpa mengubah logika pencarian, data, atau fitur.
 
@@ -425,7 +446,7 @@ terstruktur) tanpa mengubah logika pencarian, data, atau fitur.
 
 | Prinsip Hachidori | Penerapan di Shirabe |
 |---|---|
-| Header entri: headword besar + reading sebagai furigana, metadata badges di bawahnya (`render/popup.js:3285-3375`, `3647-3660`) | Header kartu: `.entry__expression` (23 px) dengan `<ruby>` furigana, badge kelas kata/tag dari dataset |
+| Header entri: headword besar + reading sebagai furigana, metadata badges di bawahnya (`render/popup.js:3285-3375`, `3647-3660`) | Kartu entri: `.entry__spelling` + bacaan inline `.entry__reading`; **belum memakai `<ruby>`/furigana** (lihat §3), badge kelas kata/tag dari dataset |
 | Panel definisi per kamus dengan judul sumber (`.gsm-hoshidicts-glossary-card` + `.glossary-card-title`) | `.dict-panel` + `.dict-panel__title` per `dictionaryId`, dipisah jarak `--s5` |
 | Tab kamus (`.gsm-hoshidicts-dictionary-tabs`, `render/popup.js:1545`) | `.dict-tabs` segmented (`role="tablist"`), tab `Semua` + satu per kamus beserta jumlah entri |
 | Metrik: `--hd-space-*` 2/4/6/8 px, `--hd-font-gloss: 16px`, `--hd-line-gloss: 1.5`, `--hd-card-padding: 7px 9px 8px` | `tokens.css`: `--s1`…`--s6` (2/4/6/8/12/16), `--fs-gloss: 14.5px`, `--lh-gloss: 1.5`, padding kartu `--s4`/`--s5` |
@@ -442,8 +463,9 @@ terstruktur) tanpa mengubah logika pencarian, data, atau fitur.
   aktif, disabled, dan mode kontras dipusatkan.
 - `src/styles/results.css`: komponen hasil (konteks kalimat, tab kamus, panel kamus, kartu
   entri, badge) sebagai satu sumber gaya untuk semua permukaan.
-- `src/ui/furigana.ts` (baru): penyelarasan bacaan ↔ kanji untuk furigana (murni tampilan,
-  ada fallback bila tidak dapat diselaraskan).
+- `src/ui/furigana.ts`: helper penyelarasan bacaan ↔ kanji + test, tetapi **belum
+  disambungkan ke renderer**; headword masih menampilkan bacaan inline. Bukan fitur yang
+  diklaim tampil pada MVP.
 - `src/ui/results-panel.ts` (baru) menggantikan `src/ui/results-view.ts`: panel hasil
   bersama (konteks, tab kamus, pesan status, catatan) dipakai popup dalam halaman, action
   popup, dan halaman pencarian.
@@ -455,31 +477,30 @@ terstruktur) tanpa mengubah logika pencarian, data, atau fitur.
 skema dataset, penempatan popup berbasis kursor, serta seluruh fitur yang sudah ada.
 Pemfilteran sumber kamus hanya menyaring daftar hasil di UI.
 
-**Header popup = kanji utama, bukan kalimat**
-- Header popup sebelumnya menampilkan kueri hasil pemindaian (bisa berupa potongan kalimat
-  seperti `学生は毎日勉強します`). Sekarang header menampilkan kanji/kosakata **entri utama**
-  beserta furigananya (`#renderHeader` memakai `alignFurigana`), sedangkan kalimat yang
-  diparsing tetap ada di blok konteks. Perilaku ini mengikuti pola Hachidori: header utama
-  popup berisi headword, dan kartu pertama tidak mengulang headword tersebut
-  (`hideFirstHeadword` + `onPrimaryEntry` pada `ResultsPanel`).
-- Bila hasil belum ada (memuat/gagal/kosong), header memakai kueri sebagai penanda
-  sementara karena headword belum diketahui.
+**Header popup bukan tempat headword**
+- Header popup saat ini berisi strip tab kamus + toolbar (label sumber, tombol tutup);
+  headword ada di kartu entri (`.entry__spelling`) beserta bacaan inline. Tidak ada
+  `#renderHeader` maupun pemanggilan `alignFurigana` di renderer; blok konteks kalimat
+  juga sudah dihapus (§4.14).
+- Pesan memuat/gagal/kosong ditampilkan di panel hasil, bukan sebagai headword sementara
+  di header.
 
 **Verifikasi**
-- Unit: 196 test (12 berkas), termasuk 8 test furigana, test tab/filter kamus, test panel
-  (konteks di atas kartu, pemilihan kartu, pesan status, headword dipindah ke header,
-  laporan entri utama saat tab berganti).
-- e2e: 78/78 lulus — termasuk pemeriksaan baru: tema gelap default pada halaman extension
-  (`rgb(22, 23, 28)`), popup bertema gelap + furigana, tab sumber kamus pada skenario dua
-  kamus aktif (menyaring panel dan kembali ke `Semua`), header menampilkan kanji utama +
-  furigana tanpa kalimat yang diparsing, headword tidak diulang pada kartu pertama,
-  kalimat tetap di blok konteks, serta header lookup menu konteks menampilkan bentuk kamus
-  (bukan teks terpilih).
+- Unit: total terkini 342 test (22 berkas), termasuk 8 test helper furigana yang belum
+  dipakai renderer, test tab/filter kamus, dan test panel (pemilihan kartu, pesan status).
+- e2e: total terkini 128/128 lulus — termasuk tema gelap default pada halaman extension
+  (`rgb(22, 23, 28)`), popup bertema gelap + bacaan inline, tab sumber kamus pada skenario
+  dua kamus aktif (menyaring kartu dan kembali ke `Semua`), headword di kartu entri, serta
+  tidak ada blok konteks (§4.14). Tidak ada pemeriksaan furigana/ruby pada headword.
 - Chromium asli + JMdict (527k entri): tidak ada overflow horizontal pada `.panel__body`,
   panel kamus, maupun kartu entri (diperiksa melalui `scrollWidth`/`clientWidth`);
   tangkapan layar tema gelap dan terang diperiksa manual.
 
 ### 4.10 Kartu entri hanya menampilkan data dari kamus
+
+> **Catatan historis:** disclosure rantai infleksi ditambahkan kembali pada §4.18;
+> pernyataan "bentuk infleksi tidak ditampilkan" di bawah berlaku pada iterasi 4.10,
+> bukan status terkini.
 
 Permintaan pemilik produk: keterangan turunan seperti "bentuk lampau · 思った" tidak perlu
 ditampilkan — cukup data yang benar-benar berasal dari kamus.
@@ -492,9 +513,10 @@ ditampilkan — cukup data yang benar-benar berasal dari kamus.
 | Label `cocok bacaan` / `bentuk terurai` | `match.matchType` | dihapus |
 | Catatan `kelas kata tidak terverifikasi` | `match.partOfSpeechVerified` | dihapus |
 
-**Yang tetap ditampilkan** (semuanya berasal dari dataset): expression, reading/furigana,
-kelas kata (`partOfSpeech`), tag (`tags`), seluruh definisi, nama kamus, serta cuplikan
-kalimat halaman (konteks, bukan anotasi kata).
+**Yang tetap ditampilkan** (semuanya berasal dari dataset): expression, reading inline,
+kelas kata (`partOfSpeech`), tag (`tags`), seluruh definisi, dan nama kamus. Cuplikan
+kalimat halaman **tidak** ditampilkan (dihapus, §4.14); furigana/ruby pada headword juga
+belum dirender (§3).
 
 **Yang tidak berubah:** deinflection tetap bekerja sebagai bagian pencarian — memindai
 `思った` tetap menemukan entri `思う` (rule `v5u.past.った`, `思う` → `思った`) dan hasilnya
@@ -541,7 +563,7 @@ muncul **sekali** di popup, dua panel kamus tetap tampil dengan definisinya masi
 
 **Belum diuji (perlu pengujian manual):**
 
-1. Pembaca layar (screen reader) dan kontras warna tergadap WCAG 2.2 AA; struktur
+1. Pembaca layar (screen reader) dan kontras warna terhadap WCAG 2.2 AA; struktur
    heading/focus sudah dibuat (label ARIA, focus-visible, `prefers-reduced-motion`,
    `forced-colors`), tetapi belum diuji dengan alat bantu.
 2. Zoom 200%, viewport kecil (mis. 800×600), dan forced colors.
@@ -551,8 +573,9 @@ muncul **sekali** di popup, dua panel kamus tetap tampil dengan definisinya masi
    build Chromium yang diuji; browser lain tidak diklaim didukung.
 5. Perilaku halaman dengan CSS ekstrem/z-index tinggi dan DOM yang berubah dinamis
    (popup memposisikan ulang pada scroll/resize; belum diuji pada kasus ekstrem).
-6. Pencabutan izin host dari `chrome://extensions` saat halaman terbuka (logika
-   reconcile ada, diuji lewat unit test klasifikasi sender; belum diuji end-to-end).
+6. Pencabutan akses semua-situs dari `chrome://extensions` saat halaman terbuka. Model
+   izin tidak memakai host permission opsional atau reconcile dinamis, jadi tidak ada
+   jalur kode khusus untuk keadaan ini; belum diuji end-to-end.
 
 **Keterbatasan desain yang diketahui:**
 
@@ -565,8 +588,26 @@ muncul **sekali** di popup, dua panel kamus tetap tampil dengan definisinya masi
 3. Pencarian manual bersifat prefix (bukan pencarian substring bebas), sesuai PRD 4.2.
 4. Tidak ada kamus personal, riwayat lookup, kanji/audio/Anki (P1/P2, belum
    diimplementasikan). Impor ZIP Yomitan sudah ada sebagai adapter subset, dengan
-   batasan: hanya format 3, tanpa ZIP64/arsip terenkripsi, dan tanpa media/kanji bank.
+   batasan: hanya format 3, tanpa ZIP64/arsip terenkripsi; bank kanji, bank meta
+   (pitch/frekuensi), dan media yang direferensikan definisi didukung sebagai subset.
 5. Ikon dan UI diuji pada Chromium Linux; rendering font Jepang bergantung sistem.
+
+**Temuan QA yang belum diperbaiki (20 Oktober 2026):**
+
+1. Menu konteks **Cari dengan Shirabe** pada situs yang pemindaiannya dimatikan tidak
+   menampilkan popup: host popup sudah dilepas dan `LOOKUP` dari content ditolak
+   `NO_PERMISSION`. Jalur eksplisit ini belum dikecualikan atau dialihkan ke halaman
+   pencarian.
+2. Content script membuang error envelope terstruktur (`src/content/index.ts`), sehingga
+   `NO_PERMISSION`/`INVALID_PAYLOAD` tampil sebagai "Terjadi kesalahan internal. (Balasan
+   service worker tidak valid.)".
+3. i18n belum lengkap: label sumber popup, "Mencari…", `aria-label` dialog, judul menu
+   konteks, dan baris batas impor masih hardcoded Indonesia.
+4. `maxMetaPerDictionary` dideklarasikan tetapi tidak ditegakkan; batas 1 juta entry tidak
+   menghitung baris meta.
+5. Jika penghapusan versi lama gagal setelah commit, impor yang sudah aktif dilaporkan
+   gagal.
+6. Query satu karakter pada kamus besar dan memori impor tiga worker belum diukur.
 
 **Pekerjaan tersisa menuju "release candidate" (PRD tahap 6):**
 
@@ -1457,7 +1498,7 @@ position"*, `hoverDelayMs` default 0).
 **Verifikasi**: `tests/content/throttle.test.ts` (4 test; termasuk kasus yang membedakan
 throttle dari debounce: penjadwalan berulang tiap 30 ms selama 300 ms harus tetap memanggil
 ≥5 kali) dan e2e `Menyapu kursor antar kata tetap memperbarui sorotan/popup selama bergerak`
-(sorotan berubah 3–6 kali selama sapuan). Regresi: 325 unit test, 126 e2e, `tsc --noEmit`,
+(sorotan berubah 3–6 kali selama sapuan). Regresi: 342 unit test, 128 e2e, `tsc --noEmit`,
 build MV3.
 
 ### 4.31 Peringkat lintas kamus dan fragmen deinflection
@@ -1480,7 +1521,7 @@ dipenuhi entri palsu ("berlaku juga ke beberapa kanji").
 |---|---|
 | Unit (`tests/core/search.test.ts`) | `呼んだ` dengan JMnedict (order 0, entri `呼`) + JMdict (order 1, `呼ぶ`) → `呼ぶ` peringkat pertama; homonim sepanjang sama tetap mengikuti prioritas kamus; `んだ`-derived `無`/`六` tidak muncul; `東京` tetap tampil bersama `東京都` |
 | Kamus nyata di Chromium (JMnedict + JMdict, urutan JMnedict lebih dulu) | kursor di `呼`: **1. `呼ぶ` (JMdict, `呼んだ→呼ぶ`), 2. `呼` (JMnedict, nama keluarga)** — sebelumnya nama keluarga itu yang pertama. Kursor di `ん`: 3 kartu (呼ぶ, んだ, ん) — sebelumnya 13 kartu dengan 12 entri bacaan satu kanji palsu |
-| Regresi | 329 unit test, 126 e2e, `tsc --noEmit`, build MV3 |
+| Regresi | 342 unit test, 128 e2e, `tsc --noEmit`, build MV3 |
 
 **Pelajaran verifikasi**: probe yang memakai **profil Chromium yang sama** dapat menjalankan
 *service worker lama* (masalah cache yang sama dengan §4.12), sehingga perubahan baru tampak
@@ -1518,7 +1559,7 @@ offset awal ke awal kata untuk bahasa tanpa spasi (`SCAN_RESOLUTION_EXCLUDED_LAN
 |---|---|
 | Kamus nyata (JMnedict + JMdict) | kursor di `ん` (separuh kiri **dan** separuh kanan): kartu pertama `んだ`; `呼ぶ`/`呼んだ` tidak lagi muncul. Kursor di `呼`: `呼ぶ` lalu `呼` (JMnedict). Kursor di `だ`: `だ` |
 | Unit (`tests/content/scan.test.ts`, 17 test) | kandidat mulai dari karakter di bawah kursor (`私は学生です。` kursor di 生 → `生です`), kanji sebelum kursor tidak disertakan (`食べたい` kursor di べ → `べたいです`), kursor di kanji tetap mencakup okurigana (`食べる` dari 食), batas 32 code point, segmen tampilan dari kursor |
-| e2e (127 pemeriksaan) | pemeriksaan baru: "Hover di karakter pertama kata tanpa spasi menemukan kata itu" dan "Kursor di tengah kata memindai dari karakter itu, bukan dari awal kata" (`日本語` → `本語`, tanpa hasil). Pemeriksaan lain disesuaikan ke aturan yang sama (だった dari だ, がな dari が, sorotan menyempit dari 学, penempatan popup memakai dua kata) |
+| e2e (128 pemeriksaan) | pemeriksaan baru: "Hover di karakter pertama kata tanpa spasi menemukan kata itu" dan "Kursor di tengah kata memindai dari karakter itu, bukan dari awal kata" (`日本語` → `本語`, tanpa hasil). Pemeriksaan lain disesuaikan ke aturan yang sama (だった dari だ, がな dari が, sorotan menyempit dari 学, penempatan popup memakai dua kata) |
 
 **Konsekuensi yang perlu diketahui**: kursor harus diarahkan ke **karakter pertama** sebuah
 kata — di tengah `日本語` hanya `本語` yang dipindai, dan `なんで` di dalam `がなんで…` tidak

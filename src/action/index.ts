@@ -225,6 +225,10 @@ async function initialize(): Promise<void> {
 }
 
 searchInput.addEventListener('input', () => {
+  // Naikkan token juga di sini: kueri yang masih terbang harus dibuang saat teks
+  // berubah, bukan hanya saat submit berikutnya. Tanpa ini respons lama dapat
+  // mengisi kembali panel yang baru saja dikosongkan.
+  requestToken += 1;
   searchButton.disabled = searchInput.value.trim().length === 0;
   resultsPanel.clear();
 });

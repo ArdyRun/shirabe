@@ -794,6 +794,27 @@ async function main() {
     actionEntry.includes('makan') && actionEntry.includes('memakan'),
     actionEntry.replaceAll('\n', ' | ').slice(0, 160),
   );
+  // Kueri yang masih terbang tidak boleh mengisi panel setelah input berubah.
+  await action.evaluate(() => {
+    const original = chrome.runtime.sendMessage.bind(chrome.runtime);
+    chrome.runtime.sendMessage = async (message) => {
+      if (message?.type === 'LOOKUP') {
+        await new Promise((resolve) => setTimeout(resolve, 600));
+      }
+      return original(message);
+    };
+  });
+  await action.fill('#search-input', '学生');
+  await action.press('#search-input', 'Enter');
+  await action.waitForTimeout(50);
+  await action.fill('#search-input', '食べる');
+  await action.waitForTimeout(900);
+  const staleText = (await action.locator('#results').innerText()).trim();
+  check(
+    'Mengganti kueri membuang respons pencarian lama yang masih terbang',
+    staleText.length === 0,
+    staleText.replaceAll('\n', ' | ').slice(0, 140),
+  );
   await action.screenshot({ path: path.join(artifactsDir, 'action-popup.png') });
   await action.close();
 
@@ -987,7 +1008,7 @@ async function main() {
     `${(await piercedNodes(page, { 'class': 'entry__spelling' })).length} headword kartu`,
   );
   check(
-    'Popup memakai tema gelap dan menampilkan furigana di atas kanji',
+    'Popup memakai tema gelap dan menampilkan bacaan inline',
     (await piercedNodes(page, { 'data-theme': 'dark' })).length > 0 &&
       popupContent.includes('学生') &&
       popupContent.includes('がくせい'),

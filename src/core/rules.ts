@@ -176,6 +176,31 @@ const VK_TAILS: readonly TerminalSpec[] = [
   ['-ろ', 'こい', 'くる', 'imp'],
 ];
 
+/**
+ * Akhiran vk (kuru) dalam aksara kanji.
+ *
+ * `来る` menulis batang `き`/`こ` sebagai `来`, sehingga akhiran kana di atas tidak
+ * pernah cocok (`来ます` tidak berakhir dengan `きます`). Tanpa aturan ini hanya
+ * `来た`/`来て` yang terurai, dan bentuk umum seperti `来ます`/`来ない` tidak menemukan
+ * lema `来る`. Aturan v1 (`ます` → `る`) menghasilkan `来る` dengan kelas kata `v1`
+ * yang kemudian ditolak validasi POS terhadap entry `vk`.
+ */
+const VK_KANJI_TAILS: readonly TerminalSpec[] = [
+  ['-ませんでした', '来ませんでした', '来る', 'masen'],
+  ['-ません', '来ません', '来る', 'masen'],
+  ['-ました', '来ました', '来る', 'masu'],
+  ['-ます', '来ます', '来る', 'masu'],
+  ['-なかった', '来なかった', '来る', 'nn'],
+  ['-なくて', '来なくて', '来る', 'nn'],
+  ['-ない', '来ない', '来る', 'nn'],
+  ['-ず', '来ず', '来る', 'nn'],
+  ['-れば', '来れば', '来る', 'ba'],
+  ['-よう', '来よう', '来る', 'ya'],
+  ['-た', '来た', '来る', 'ta'],
+  ['-て', '来て', '来る', 'te'],
+  ['-ろ', '来い', '来る', 'imp'],
+];
+
 /** Bentuk suru: し + akhiran, jadi `from` harus menyertakan し. */
 const VS_TAILS: readonly TerminalSpec[] = [
   ['-ませんでした', 'しませんでした', 'する', 'masen'],
@@ -321,6 +346,7 @@ function buildRules(): DeinflectionRule[] {
 
   terminalRules(rules, 'v1', V1_TAILS);
   terminalRules(rules, 'vk', VK_TAILS);
+  terminalRules(rules, 'vk', VK_KANJI_TAILS);
   terminalRules(rules, 'vs', VS_TAILS);
   terminalRules(rules, 'vz', VZ_TAILS);
   terminalRules(rules, 'adj-i', ADJ_I_TAILS);
@@ -342,26 +368,6 @@ function buildRules(): DeinflectionRule[] {
       ['-た', row.ta, row.u, 'ta'],
     ]);
   }
-
-  // Kuru dalam aksara kanji (来る) tidak tercakup akhiran kana di atas.
-  rules.push(
-    {
-      id: 'vk.-た.来た',
-      from: '来た',
-      to: '来る',
-      transform: '-た',
-      conditionsIn: ['ta'],
-      conditionsOut: ['vk'],
-    },
-    {
-      id: 'vk.-て.来て',
-      from: '来て',
-      to: '来る',
-      transform: '-て',
-      conditionsIn: ['te'],
-      conditionsOut: ['vk'],
-    },
-  );
 
   // 行く adalah v5k dengan bentuk te/lampau tidak teratur (いって/いった), jadi
   // akhiran v5t juga dapat mengembalikan lema v5k.

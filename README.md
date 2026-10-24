@@ -7,7 +7,7 @@ berjalan lokal dari kamus di IndexedDB; tidak ada teks yang dikirim ke jaringan.
 - Spesifikasi produk: [`PRD.md`](PRD.md)
 - Status implementasi, keterbatasan, dan benchmark: [`docs/mvp-audit.md`](docs/mvp-audit.md)
 
-Status saat ini: MVP. 325 unit/integration test lulus, typecheck bersih, dan build MV3 lolos
+Status saat ini: MVP. 342 unit/integration test lulus, typecheck bersih, dan build MV3 lolos
 validasi manifest.
 
 ## Persyaratan
@@ -21,7 +21,7 @@ validasi manifest.
 npm install
 npm run build          # build halaman + content script, lalu validasi manifest MV3
 npm run dev            # build ulang otomatis saat berkas berubah (watch)
-npm test               # 325 unit/integration test (Vitest, tanpa browser)
+npm test               # 342 unit/integration test (Vitest, tanpa browser)
 npm run typecheck      # pemeriksaan TypeScript
 npm run e2e            # pengujian di Chromium asli (Playwright)
 npm run bench          # benchmark impor/lookup/hover di Chromium asli

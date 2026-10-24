@@ -151,9 +151,13 @@ async function main() {
     await page.waitForSelector('[data-shirabe="popup"]', { state: 'attached', timeout: 15000 });
 
     const before = await hoverWord(page);
+    // Headword dirender sebagai tombol per kanji, jadi teks CDP memisahkan `学` dan
+    // `生` dengan spasi. Bandingkan tanpa spasi agar pemeriksaan tidak bergantung pada
+    // bentuk DOM internal popup.
+    const beforeCompact = before.replaceAll(/\s+/g, '');
     check(
       'Hover berfungsi sebelum extension dimuat ulang',
-      before.includes('学生') && before.includes('pelajar; mahasiswa'),
+      beforeCompact.includes('学生') && beforeCompact.includes('pelajar;mahasiswa'),
       before.slice(0, 120),
     );
 
